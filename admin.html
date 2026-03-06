@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>관리자 | 홈페이지 내용 수정</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <link href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-soft: rgba(88, 166, 255, 0.15);
+      --danger: #f85149;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 18px; }
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      font-size: 1rem;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    #admin-login {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    #admin-login.hidden { display: none; }
+    .login-box {
+      background: var(--card);
+      padding: 2rem;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.06);
+      width: 100%;
+      max-width: 320px;
+    }
+    .login-box h2 { font-size: 1.1rem; margin-bottom: 1rem; color: var(--text); }
+    .login-box input[type="password"] {
+      width: 100%;
+      padding: 0.6rem 0.75rem;
+      margin-bottom: 1rem;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    .login-box .login-err { font-size: 0.85rem; color: var(--danger); margin-bottom: 0.5rem; display: none; }
+    .login-box .login-err.visible { display: block; }
+
+    .btn {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 8px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: opacity 0.2s;
+    }
+    .btn:hover { opacity: 0.9; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-secondary { background: rgba(255,255,255,0.12); color: var(--text); border: 1px solid rgba(255,255,255,0.2); }
+    .btn-ghost { background: transparent; color: var(--text-muted); padding: 0.25rem; }
+
+    /* 상단바 */
+    .admin-nav {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 0;
+      padding: 1rem 1.5rem;
+      background: var(--card);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap;
+    }
+    .admin-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.6rem 1.2rem;
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+    }
+    .admin-nav a:hover { color: var(--text); background: var(--accent-soft); }
+    .admin-nav a.active { color: var(--accent); background: var(--accent-soft); }
+    .admin-nav .nav-right { margin-left: auto; }
+
+    /* 2열 */
+    .admin-layout {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      min-height: calc(100vh - 56px);
+    }
+    @media (max-width: 900px) {
+      .admin-layout { grid-template-columns: 1fr; }
+    }
+
+    .admin-preview {
+      padding: 1.5rem;
+      border-right: 1px solid rgba(255,255,255,0.06);
+      overflow: auto;
+    }
+    .admin-preview h2 {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 1rem;
+      font-weight: 600;
+    }
+    /* 인덱스 페이지와 동일한 미리보기 스타일 */
+    #preview-area .idx-nav {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      padding: 0.75rem 1rem;
+      background: var(--card);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap;
+    }
+    #preview-area .idx-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.4rem 0.8rem;
+      font-weight: 500;
+      font-size: 0.85rem;
+      border-radius: 6px;
+    }
+    #preview-area .idx-nav a.idx-active { color: var(--accent); background: var(--accent-soft); }
+    #preview-area .idx-nav.idx-nav-light { background: #dbeafe !important; border-bottom-color: rgba(30,64,175,0.25); }
+    #preview-area .idx-nav.idx-nav-light a { color: #1e3a8a; }
+    #preview-area .idx-nav.idx-nav-light a:hover { color: #1e40af; background: rgba(59,130,246,0.15); }
+    #preview-area .idx-nav.idx-nav-light a.idx-active { color: #1d4ed8; background: rgba(59,130,246,0.25); }
+    #preview-area .idx-header {
+      padding: 1.5rem 1rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    #preview-area .idx-header h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; }
+    #preview-area .idx-header p { color: var(--text-muted); font-size: 0.9rem; }
+    #preview-area .idx-container { padding: 1rem; max-width: 100%; }
+    #preview-area .idx-page { display: none; }
+    #preview-area .idx-page.idx-active { display: block; }
+    #preview-area .idx-page-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text); }
+    #preview-area .intro-text, #preview-area .blog-text, #preview-area .contact-text { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+    #preview-area .intro-block-text { color: var(--text); font-size: 0.95rem; line-height: 1.6; }
+    #preview-area .intro-block-text a { color: var(--accent); text-decoration: none; }
+    #preview-area .contact-text a { color: var(--accent); text-decoration: none; }
+    #preview-area .expert-card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+    #preview-area .expert-name { font-size: 1rem; font-weight: 700; margin-bottom: 0.2rem; }
+    #preview-area .expert-role { color: var(--accent); font-size: 0.8rem; margin-bottom: 0.5rem; }
+    #preview-area .expert-desc { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 0.5rem; }
+    #preview-area .youtube-wrap { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 6px; background: #000; }
+    #preview-area .youtube-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
+    #preview-area .youtube-link { color: var(--accent); font-size: 0.8rem; text-decoration: none; }
+
+    .admin-edit {
+      padding: 1.5rem;
+      overflow: auto;
+    }
+    .admin-edit h2 {
+      font-size: 1.05rem;
+      color: var(--text);
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+    .edit-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+    .edit-toolbar-btns { display: flex; align-items: center; gap: 0.5rem; position: relative; }
+    .intro-add-wrap { position: relative; }
+    .intro-add-dropdown {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 0.25rem;
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px;
+      padding: 0.25rem;
+      z-index: 50;
+      min-width: 120px;
+    }
+    .intro-add-dropdown .btn-add-choice {
+      display: block;
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      background: none;
+      border: none;
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    .intro-add-dropdown .btn-add-choice:hover { background: var(--accent-soft); color: var(--accent); }
+    .btn-add-block {
+      width: 32px;
+      height: 32px;
+      margin: 0.35rem auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--card);
+      border: 1px dashed rgba(255,255,255,0.25);
+      border-radius: 50%;
+      color: var(--text-muted);
+      font-size: 1rem;
+      line-height: 1;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .btn-add-block:hover { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+    .add-btn-wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100%;
+      margin: 0.5rem 0;
+      min-height: 44px;
+    }
+    .content-block {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.5rem;
+      border: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+    .content-block .block-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 0.5rem;
+    }
+    .content-block .block-type {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+    .content-block .block-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+    }
+    .content-block .block-drag {
+      cursor: grab;
+      color: var(--text-muted);
+      padding: 0.2rem;
+      user-select: none;
+    }
+    .content-block .block-drag:active { cursor: grabbing; }
+    .content-block.dragging { opacity: 0.5; }
+    .content-block.drag-over { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
+    .content-block label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+    }
+    .content-block input,
+    .content-block textarea {
+      width: 100%;
+      padding: 0.5rem 0.75rem;
+      margin-bottom: 0.5rem;
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 6px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: inherit;
+      font-size: 1rem;
+    }
+    .content-block textarea { min-height: 60px; resize: vertical; }
+    .content-block .note-editor .note-editable { background: #1e293b; color: var(--text); min-height: 180px; font-size: 1rem; }
+    .content-block .note-editor .note-editable h1,
+    .content-block .note-editor .note-editable h2,
+    .content-block .note-editor .note-editable h3 { color: var(--text); }
+    .content-block .note-toolbar { background: var(--card); border-color: rgba(255,255,255,0.1); }
+    .content-block .note-btn { color: var(--text); border-color: rgba(255,255,255,0.15); background: var(--card) !important; }
+    .content-block .note-btn:hover { background: var(--accent-soft) !important; color: var(--accent); }
+    /* Summernote 드롭다운·툴팁·팔레트: 어두운 배경으로 가독성 확보 */
+    .note-editor .dropdown-menu,
+    .note-editor .note-dropdown-menu,
+    .note-editor .popover .popover-content,
+    .note-editor .note-modal {
+      background: var(--card) !important;
+      border: 1px solid rgba(255,255,255,0.15) !important;
+      color: var(--text) !important;
+    }
+    .note-editor .dropdown-menu a,
+    .note-editor .note-dropdown-menu a,
+    .note-editor .dropdown-menu li,
+    .note-editor .note-dropdown-menu li {
+      color: var(--text) !important;
+    }
+    .note-editor .dropdown-menu a:hover,
+    .note-editor .note-dropdown-menu a:hover {
+      background: var(--accent-soft) !important;
+      color: var(--accent) !important;
+    }
+    .note-editor .note-color-palette div,
+    .note-editor .note-color .dropdown-toggle {
+      border-color: rgba(255,255,255,0.2) !important;
+    }
+    .tooltip .tooltip-inner {
+      background: var(--card) !important;
+      color: var(--text) !important;
+      border: 1px solid rgba(255,255,255,0.2);
+      font-size: 0.9rem;
+    }
+    .tooltip.top .tooltip-arrow { border-top-color: var(--card) !important; }
+    .tooltip.bottom .tooltip-arrow { border-bottom-color: var(--card) !important; }
+    .tooltip.left .tooltip-arrow { border-left-color: var(--card) !important; }
+    .tooltip.right .tooltip-arrow { border-right-color: var(--card) !important; }
+
+    .msg {
+      padding: 0.5rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      margin-bottom: 0.75rem;
+    }
+    .msg.success { background: rgba(46, 160, 67, 0.2); color: #7ee787; }
+    .msg.error { background: rgba(248, 81, 73, 0.2); color: #f85149; }
+  </style>
+</head>
+<body>
+  <div id="admin-login">
+    <div class="login-box">
+      <h2>관리자 비밀번호</h2>
+      <p class="login-err" id="login-err">비밀번호가 올바르지 않습니다.</p>
+      <input type="password" id="admin-pw" placeholder="비밀번호 입력" autocomplete="current-password" />
+      <button type="button" class="btn btn-primary" id="admin-pw-submit" style="width: 100%;">입장</button>
+    </div>
+  </div>
+
+  <div id="admin-content" style="display: none;">
+    <nav class="admin-nav">
+      <a href="#" class="admin-tab active" data-tab="main">대문</a>
+      <a href="#" class="admin-tab" data-tab="intro">소개</a>
+      <a href="#" class="admin-tab" data-tab="blog">블로그</a>
+      <a href="#" class="admin-tab" data-tab="youtube">유튜브</a>
+      <a href="#" class="admin-tab" data-tab="contact">문의하기</a>
+      <a href="index.html" target="_blank" class="nav-right">메인에서 보기 ↗</a>
+    </nav>
+
+    <div class="admin-layout">
+      <div class="admin-preview">
+        <h2>수정사항 미리보기</h2>
+        <div id="preview-area"></div>
+      </div>
+
+      <div class="admin-edit">
+        <div class="edit-toolbar">
+          <h2>수정 내용</h2>
+          <div class="edit-toolbar-btns">
+            <div class="intro-add-wrap" id="intro-add-wrap" style="display: none;">
+              <button type="button" class="btn btn-secondary" id="btn-add-intro">추가</button>
+              <div class="intro-add-dropdown" id="intro-add-dropdown" style="display: none;">
+                <button type="button" class="btn-add-choice" data-type="introText">텍스트</button>
+                <button type="button" class="btn-add-choice" data-type="introImage">이미지</button>
+              </div>
+            </div>
+            <button type="button" class="btn btn-primary" id="btn-save">저장</button>
+          </div>
+        </div>
+        <div id="msg" class="msg" style="display: none;"></div>
+
+        <div id="blocks-container"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
+  <script>
+    (function() {
+      var ADMIN_PASSWORD = 'admin';
+      var AUTH_KEY = 'admin-auth';
+      var STORAGE_KEY = 'homepage-data';
+      var SUPABASE_URL = 'https://lirxlbbbmqcsbnjnyqkg.supabase.co';
+      var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcnhsYmJibXFjc2Juam55cWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDk2MTIsImV4cCI6MjA4MjE4NTYxMn0.06V04-rJsbChPIGUJQemxZH6Ss16vArJRKGyQejf_JE';
+      var STORAGE_BUCKET = 'homepage';
+
+      var loginEl = document.getElementById('admin-login');
+      var contentEl = document.getElementById('admin-content');
+      var pwInput = document.getElementById('admin-pw');
+      var pwSubmit = document.getElementById('admin-pw-submit');
+      var loginErr = document.getElementById('login-err');
+
+      function grantAccess() {
+        try { sessionStorage.setItem(AUTH_KEY, '1'); } catch (e) {}
+        loginEl.classList.add('hidden');
+        contentEl.style.display = 'block';
+      }
+      if (sessionStorage.getItem(AUTH_KEY) === '1') grantAccess();
+      pwSubmit.addEventListener('click', function() {
+        if (pwInput.value === ADMIN_PASSWORD) { loginErr.classList.remove('visible'); grantAccess(); }
+        else { loginErr.classList.add('visible'); pwInput.focus(); }
+      });
+      pwInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') pwSubmit.click(); });
+
+      var blocksContainer = document.getElementById('blocks-container');
+      var previewArea = document.getElementById('preview-area');
+      var msgEl = document.getElementById('msg');
+      var currentTab = 'main';
+
+      function getTabForType(type) {
+        if (type === 'header' || type === 'bgColor' || type === 'mainImage') return 'main';
+        if (type === 'introText' || type === 'introImage') return 'intro';
+        if (type === 'blog') return 'blog';
+        if (type === 'expert') return 'youtube';
+        if (type === 'contact') return 'contact';
+        return 'main';
+      }
+
+      function filterByTab() {
+        var tab = currentTab;
+        blocksContainer.querySelectorAll('[data-tab]').forEach(function(el) {
+          el.style.display = el.getAttribute('data-tab') === tab ? '' : 'none';
+        });
+        blocksContainer.querySelectorAll('.add-btn-wrap[data-tab="main"]').forEach(function(el) {
+          el.style.display = 'none';
+        });
+        var introAddWrap = document.getElementById('intro-add-wrap');
+        var introAddDropdown = document.getElementById('intro-add-dropdown');
+        if (introAddWrap) introAddWrap.style.display = tab === 'intro' ? '' : 'none';
+        if (introAddDropdown) introAddDropdown.style.display = 'none';
+        renderPreview();
+      }
+
+      function showMsg(text, type) {
+        msgEl.textContent = text;
+        msgEl.className = 'msg ' + (type || 'info');
+        msgEl.style.display = 'block';
+        setTimeout(function() { msgEl.style.display = 'none'; }, 4000);
+      }
+
+      function getBlocksFromDOM() {
+        var blocks = [];
+        document.querySelectorAll('.content-block').forEach(function(el) {
+          var type = el.getAttribute('data-block-type');
+          if (type === 'header') {
+            blocks.push({
+              type: 'header',
+              siteTitle: (el.querySelector('[name="siteTitle"]') || {}).value || '',
+              siteSubtitle: (el.querySelector('[name="siteSubtitle"]') || {}).value || '',
+              siteTitleColor: (el.querySelector('[name="siteTitleColor"]') || {}).value || ''
+            });
+          } else if (type === 'introText') {
+            var sn = el.querySelector('.intro-summernote');
+            var html = '';
+            if (sn && window.$ && $.fn.summernote) { try { html = $(sn).summernote('code') || ''; } catch (err) { html = sn.innerHTML || ''; } }
+            else if (sn) html = sn.innerHTML || '';
+            blocks.push({ type: 'introText', content: html });
+          } else if (type === 'introImage') {
+            blocks.push({ type: 'introImage', url: (el.querySelector('[name="introImageUrl"]') || {}).value || '' });
+          } else if (type === 'blog') {
+            blocks.push({ type: 'blog', content: (el.querySelector('[name="blog"]') || {}).value || '' });
+          } else if (type === 'contact') {
+            blocks.push({
+              type: 'contact',
+              contactEmail: (el.querySelector('[name="contactEmail"]') || {}).value || '',
+              contactText: (el.querySelector('[name="contactText"]') || {}).value || ''
+            });
+          } else if (type === 'expert') {
+            blocks.push({
+              type: 'expert',
+              name: (el.querySelector('[name="expertName"]') || {}).value || '',
+              role: (el.querySelector('[name="expertRole"]') || {}).value || '',
+              description: (el.querySelector('[name="expertDesc"]') || {}).value || '',
+              videoId: (el.querySelector('[name="expertVideoId"]') || {}).value || ''
+            });
+          } else if (type === 'bgColor') {
+            blocks.push({
+              type: 'bgColor',
+              color: (el.querySelector('[name="siteBgColor"]') || {}).value || '',
+              navMode: (el.querySelector('[name="siteNavMode"]') || {}).value || 'dark',
+              textColor: (el.querySelector('[name="siteTextColor"]') || {}).value || ''
+            });
+          } else if (type === 'mainImage') {
+            blocks.push({ type: 'mainImage', url: (el.querySelector('[name="siteMainImage"]') || {}).value || '' });
+          }
+        });
+        return blocks;
+      }
+
+      function blocksToLegacy(blocks) {
+        var header = blocks.find(function(b) { return b.type === 'header'; }) || {};
+        var bgColor = blocks.find(function(b) { return b.type === 'bgColor'; }) || {};
+        var mainImage = blocks.find(function(b) { return b.type === 'mainImage'; }) || {};
+        var introBlocks = blocks.filter(function(b) { return b.type === 'introText' || b.type === 'introImage'; }).map(function(b) {
+          return b.type === 'introText' ? { type: 'text', content: b.content || '' } : { type: 'image', url: (b.url || '').trim() };
+        });
+        var blog = blocks.find(function(b) { return b.type === 'blog'; }) || {};
+        var contact = blocks.find(function(b) { return b.type === 'contact'; }) || {};
+        var experts = blocks.filter(function(b) { return b.type === 'expert'; });
+        return {
+          siteTitle: header.siteTitle || '',
+          siteSubtitle: header.siteSubtitle || '',
+          siteTitleColor: (header.siteTitleColor || '').trim(),
+          siteBgColor: (bgColor.color || '').trim(),
+          siteNavMode: (bgColor.navMode === 'light' ? 'light' : 'dark'),
+          siteTextColor: (bgColor.textColor || '').trim(),
+          siteMainImage: (mainImage.url || '').trim(),
+          introBlocks: introBlocks,
+          blog: blog.content || '',
+          contactEmail: (contact.contactEmail || '').trim(),
+          contactText: contact.contactText || '',
+          experts: experts.map(function(e) { return { name: e.name, role: e.role, description: e.description, videoId: e.videoId }; })
+        };
+      }
+
+      function renderPreview() {
+        var data = blocksToLegacy(getBlocksFromDOM());
+        var tab = currentTab;
+        var fullBg = (data.siteBgColor && data.siteBgColor.trim()) ? escapeHtml(data.siteBgColor.trim()) : 'var(--bg)';
+        var isLight = data.siteNavMode === 'light';
+        var textColor = (data.siteTextColor && data.siteTextColor.trim())
+          ? escapeHtml(data.siteTextColor.trim())
+          : (isLight ? '#24292f' : '#e6edf3');
+        // 라이트 모드일 때 블럭 배경은 연한 하늘색(탭 바와 동일), 다크는 기존 카드 색상
+        var tabLightColor = '#dbeafe';
+        var cardColor = isLight ? tabLightColor : '#1a2332';
+        try {
+          document.documentElement.style.setProperty('--bg', fullBg);
+          document.documentElement.style.setProperty('--text', textColor);
+          document.documentElement.style.setProperty('--card', cardColor);
+        } catch (e) {}
+        var title = data.siteTitle || '제목';
+        var subtitle = data.siteSubtitle || '부제목';
+        var active = tab === 'main' ? 'main' : tab;
+        var navCls = 'idx-nav' + (data.siteNavMode === 'light' ? ' idx-nav-light' : '');
+        var navHtml = '<nav class="' + navCls + '">' +
+          '<a class="' + (active === 'main' ? 'idx-active' : '') + '">대문</a>' +
+          '<a class="' + (active === 'intro' ? 'idx-active' : '') + '">소개</a>' +
+          '<a class="' + (active === 'blog' ? 'idx-active' : '') + '">블로그</a>' +
+          '<a class="' + (active === 'youtube' ? 'idx-active' : '') + '">유튜브</a>' +
+          '<a class="' + (active === 'contact' ? 'idx-active' : '') + '">문의하기</a>' +
+          '</nav>';
+        var headerHtml = '<header class="idx-header"><h1>' + escapeHtml(title) + '</h1><p>' + escapeHtml(subtitle) + '</p></header>';
+        var introActive = tab === 'intro' ? ' idx-active' : '';
+        var blogActive = tab === 'blog' ? ' idx-active' : '';
+        var ytActive = tab === 'youtube' ? ' idx-active' : '';
+        var contactActive = tab === 'contact' ? ' idx-active' : '';
+        var introBlocksHtml = (data.introBlocks || []).map(function(ib) {
+          if (ib.type === 'text') return '<div class="intro-block-text" style="margin-top:0.75rem">' + (ib.content || '') + '</div>';
+          if (ib.type === 'image' && ib.url) return '<div class="intro-block-image" style="margin-top:0.75rem"><img src="' + escapeHtml(ib.url) + '" alt="" style="max-width:100%;height:auto;display:block;border-radius:8px" /></div>';
+          return '';
+        }).join('');
+        if (!introBlocksHtml) introBlocksHtml = '<p class="intro-text" style="color:var(--text-muted)">텍스트 또는 이미지 블록을 추가하세요.</p>';
+        var blogBody = escapeHtml((data.blog || '')).replace(/\n/g, '<br>');
+        var contactBody = escapeHtml((data.contactText || '')).replace(/\n/g, '<br>') + (data.contactEmail ? ' <a href="mailto:' + escapeHtml(data.contactEmail) + '">' + escapeHtml(data.contactEmail) + '</a>' : '');
+        var expertsHtml = '';
+        (data.experts || []).forEach(function(ex) {
+          var vid = extractYouTubeId((ex.videoId || '').trim());
+          expertsHtml += '<article class="expert-card">' +
+            '<h3 class="expert-name">' + escapeHtml(ex.name || '') + '</h3>' +
+            '<p class="expert-role">' + escapeHtml(ex.role || '') + '</p>' +
+            '<p class="expert-desc">' + escapeHtml(ex.description || '') + '</p>' +
+            (vid ? '<div class="youtube-wrap"><iframe src="https://www.youtube.com/embed/' + escapeHtml(vid) + '" title="YouTube" allowfullscreen></iframe></div><a class="youtube-link" href="https://www.youtube.com/watch?v=' + escapeHtml(vid) + '" target="_blank" rel="noopener">유튜브에서 보기 ↗</a>' : '') +
+            '</article>';
+        });
+        var mainHtml = '<main class="idx-container" style="color:' + textColor + '">' +
+          '<section class="idx-page idx-intro' + introActive + '"><h2 class="idx-page-title"></h2>' + introBlocksHtml + '</section>' +
+          '<section class="idx-page idx-blog' + blogActive + '"><h2 class="idx-page-title">블로그</h2><p class="blog-text">' + blogBody + '</p></section>' +
+          '<section class="idx-page idx-youtube' + ytActive + '"><h2 class="idx-page-title">유튜브</h2><div class="idx-experts">' + (expertsHtml || '<p class="expert-desc" style="color:var(--text-muted)">전문가 블록을 추가하세요.</p>') + '</div></section>' +
+          '<section class="idx-page idx-contact' + contactActive + '"><h2 class="idx-page-title">문의하기</h2><p class="contact-text">' + contactBody + '</p></section>' +
+          '</main>';
+        if (tab === 'main') {
+          var titleColorStyle = (data.siteTitleColor && data.siteTitleColor.trim()) ? 'color:' + escapeHtml(data.siteTitleColor.trim()) + ';' : '';
+          var headerStyle = 'min-height:80px;';
+          if (data.siteMainImage && data.siteMainImage.trim()) {
+            headerStyle += 'background-image:url(' + escapeHtml(data.siteMainImage.trim()) + ');background-size:cover;background-position:center;min-height:200px;position:relative;';
+            headerStyle += 'box-sizing:border-box;padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;';
+            headerStyle += 'box-shadow:inset 0 0 0 9999px rgba(0,0,0,0);';
+          }
+          previewArea.innerHTML = '<div style="background-color:' + fullBg + ';min-height:100%;padding-bottom:1rem">' + navHtml + '<div class="idx-header" style="' + headerStyle + '">' + '<h1 style="' + titleColorStyle + '">' + escapeHtml(title) + '</h1><p style="' + titleColorStyle + '">' + escapeHtml(subtitle) + '</p></div></div>';
+        } else {
+          previewArea.innerHTML = '<div style="background-color:' + fullBg + ';min-height:100%;padding-bottom:1rem">' + navHtml + headerHtml + mainHtml + '</div>';
+        }
+        previewArea.parentElement.style.backgroundColor = fullBg;
+        var editPanel = document.querySelector('.admin-edit');
+        if (editPanel) editPanel.style.backgroundColor = fullBg;
+        try {
+          Array.prototype.forEach.call(document.querySelectorAll('.note-editor .note-editable'), function(el) {
+            el.style.backgroundColor = fullBg;
+          });
+        } catch (e) {}
+      }
+
+      function escapeHtml(s) {
+        if (!s) return '';
+        var d = document.createElement('div');
+        d.textContent = s;
+        return d.innerHTML;
+      }
+
+      // 유튜브 URL 또는 ID에서 영상 ID만 추출
+      function extractYouTubeId(input) {
+        if (!input) return '';
+        var s = ('' + input).trim();
+        // 이미 ID처럼 보이면 그대로 사용
+        if (/^[a-zA-Z0-9_-]{6,}$/.test(s) && s.indexOf('http') !== 0) return s;
+        try {
+          var url = new URL(s);
+          if (url.hostname === 'youtu.be') {
+            return url.pathname.replace('/', '').split('?')[0];
+          }
+          if (url.hostname.indexOf('youtube.com') !== -1) {
+            var v = url.searchParams.get('v');
+            if (v) return v;
+            var parts = url.pathname.split('/');
+            var last = parts[parts.length - 1];
+            if (last) return last;
+          }
+        } catch (e) {}
+        return s;
+      }
+
+      function createAddBtn(tab) {
+        var wrap = document.createElement('div');
+        wrap.className = 'add-btn-wrap';
+        wrap.setAttribute('data-tab', tab);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-add-block';
+        btn.textContent = '+';
+        btn.setAttribute('aria-label', '블록 추가');
+        wrap.appendChild(btn);
+        if (tab === 'youtube') {
+          btn.addEventListener('click', function() {
+            var blockEl = addBlock('expert', {}, wrap.nextSibling, true);
+            var nextAdd = createAddBtn('youtube');
+            blocksContainer.insertBefore(nextAdd, blockEl ? blockEl.nextSibling : null);
+            renderPreview();
+            filterByTab();
+          });
+        }
+        return wrap;
+      }
+
+      function addBlock(type, data, insertBefore, noPreview) {
+        data = data || {};
+        if (data.noPreview) { noPreview = true; delete data.noPreview; }
+        var tab = getTabForType(type);
+        var wrap = document.createElement('div');
+        wrap.className = 'content-block';
+        wrap.setAttribute('data-block-type', type);
+        wrap.setAttribute('data-tab', tab);
+        wrap.draggable = false;
+
+        if (type === 'header') {
+          var titleColor = (data.siteTitleColor || '').trim();
+          var pickerVal = titleColor && /^#[0-9A-Fa-f]{6}$/.test(titleColor) ? titleColor : '#ffffff';
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">사이트 상단</span></div>' +
+            '<label>메인 제목</label><input type="text" name="siteTitle" placeholder="전문가 소개" value="' + escapeHtml(data.siteTitle || '') + '" />' +
+            '<label>부제목</label><input type="text" name="siteSubtitle" placeholder="우리 팀의 전문가들을 만나보세요" value="' + escapeHtml(data.siteSubtitle || '') + '" />' +
+            '<label>글자색 (제목·부제목)</label><input type="text" name="siteTitleColor" placeholder="#ffffff" value="' + escapeHtml(titleColor) + '" style="max-width:200px" />' +
+            '<input type="color" name="siteTitleColorPicker" data-for="siteTitleColor" style="width:40px;height:36px;vertical-align:middle;margin-left:8px;padding:2px;cursor:pointer" title="색 선택" value="' + pickerVal + '" />';
+          (function() {
+            var picker = wrap.querySelector('[name="siteTitleColorPicker"]');
+            var textInput = wrap.querySelector('[name="siteTitleColor"]');
+            if (picker && textInput) {
+              picker.addEventListener('input', function() { textInput.value = picker.value; renderPreview(); });
+              textInput.addEventListener('input', function() { renderPreview(); });
+            }
+          })();
+        } else if (type === 'bgColor') {
+          var navMode = (data.navMode === 'light' ? 'light' : 'dark');
+          var defaultDarkBg = '#0f1419';
+          var defaultLightBg = '#f6f8fa';
+          var defaultDarkText = '#e6edf3';
+          var defaultLightText = '#24292f';
+          var currentColor = (data.color && data.color.trim()) ? data.color.trim() : (navMode === 'light' ? defaultLightBg : defaultDarkBg);
+          var pickerVal = /^#[0-9A-Fa-f]{6}$/.test(currentColor) ? currentColor : (navMode === 'light' ? defaultLightBg : defaultDarkBg);
+          var currentTextColor = (data.textColor && data.textColor.trim()) ? data.textColor.trim() : (navMode === 'light' ? defaultLightText : defaultDarkText);
+          var textPickerVal = /^#[0-9A-Fa-f]{6}$/.test(currentTextColor) ? currentTextColor : (navMode === 'light' ? defaultLightText : defaultDarkText);
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">홈페이지 배경색 (전체 페이지)</span></div>' +
+            '<label>탭 바 스타일</label><select name="siteNavMode" style="max-width:200px;padding:0.4rem;margin-bottom:0.5rem;color:#000;background:#fff">' +
+            '<option value="dark"' + (navMode === 'dark' ? ' selected' : '') + '>다크</option>' +
+            '<option value="light"' + (navMode === 'light' ? ' selected' : '') + '>라이트</option></select>' +
+            '<label style="margin-top:0.5rem">배경색 (예: #0f1419 또는 #f6f8fa)</label><input type="text" name="siteBgColor" placeholder="' + (navMode === 'light' ? defaultLightBg : defaultDarkBg) + '" value="' + escapeHtml(currentColor) + '" style="max-width:200px" />' +
+            '<input type="color" name="siteBgColorPicker" data-for="siteBgColor" style="width:40px;height:36px;vertical-align:middle;margin-left:8px;padding:2px;cursor:pointer" title="색 선택" value="' + pickerVal + '" />' +
+            '<label style="margin-top:0.5rem">글자색</label><input type="text" name="siteTextColor" placeholder="' + (navMode === 'light' ? defaultLightText : defaultDarkText) + '" value="' + escapeHtml(currentTextColor) + '" style="max-width:200px" />' +
+            '<input type="color" name="siteTextColorPicker" data-for="siteTextColor" style="width:40px;height:36px;vertical-align:middle;margin-left:8px;padding:2px;cursor:pointer" title="글자색 선택" value="' + textPickerVal + '" />' +
+            '<div style="margin-top:0.75rem"><button type="button" class="btn btn-secondary btn-reset-bg">초기화</button></div>';
+          (function() {
+            var picker = wrap.querySelector('[name="siteBgColorPicker"]');
+            var textInput = wrap.querySelector('[name="siteBgColor"]');
+            var navSelect = wrap.querySelector('[name="siteNavMode"]');
+            var textColorInput = wrap.querySelector('[name="siteTextColor"]');
+            var textColorPicker = wrap.querySelector('[name="siteTextColorPicker"]');
+            if (picker && textInput) {
+              picker.addEventListener('input', function() { textInput.value = picker.value; renderPreview(); });
+              textInput.addEventListener('input', function() { renderPreview(); });
+            }
+            if (textColorPicker && textColorInput) {
+              textColorPicker.addEventListener('input', function() { textColorInput.value = textColorPicker.value; renderPreview(); });
+              textColorInput.addEventListener('input', function() { renderPreview(); });
+            }
+            if (navSelect) navSelect.addEventListener('change', function() {
+              var isLight = navSelect.value === 'light';
+              var defBg = isLight ? defaultLightBg : defaultDarkBg;
+              var defText = isLight ? defaultLightText : defaultDarkText;
+              textInput.value = defBg;
+              textInput.placeholder = defBg;
+              picker.value = defBg;
+              if (textColorInput) {
+                textColorInput.value = defText;
+                textColorInput.placeholder = defText;
+              }
+              if (textColorPicker) textColorPicker.value = defText;
+              renderPreview();
+            });
+            wrap.querySelector('.btn-reset-bg').addEventListener('click', function() {
+              loadFromSupabase()
+                .then(function(data) {
+                  if (data && typeof data === 'object') setBlocks(legacyToBlocks(data));
+                  else {
+                    var stored = localStorage.getItem(STORAGE_KEY);
+                    if (stored) try { setBlocks(legacyToBlocks(JSON.parse(stored))); } catch (e) {}
+                  }
+                })
+                .catch(function() {
+                  var stored = localStorage.getItem(STORAGE_KEY);
+                  if (stored) try { setBlocks(legacyToBlocks(JSON.parse(stored))); } catch (e) {}
+                });
+            });
+          })();
+        } else if (type === 'mainImage') {
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">대문 이미지</span></div>' +
+            '<input type="hidden" name="siteMainImage" value="' + escapeHtml(data.url || '') + '" />' +
+            '<label>이미지 파일 업로드</label><input type="file" name="siteMainImageFile" accept="image/*" style="margin-bottom:0.5rem" />' +
+            '<span class="main-image-upload-status" style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:0.5rem"></span>' +
+            '<label style="margin-top:0.5rem">미리보기</label><div class="main-image-preview" style="max-width:100%;max-height:120px;margin-top:0.25rem;border-radius:8px;overflow:hidden;background:var(--bg)">' +
+            (data.url ? '<img src="' + escapeHtml(data.url) + '" alt="" style="width:100%;height:auto;display:block" onerror="this.parentNode.innerHTML=\'<span style=color:var(--text-muted);font-size:0.8rem>이미지를 불러올 수 없습니다</span>\'" />' : '<span style="color:var(--text-muted);font-size:0.8rem">이미지를 업로드하세요</span>') + '</div>' +
+            '<button type="button" class="btn btn-secondary btn-reset-main-image" style="margin-top:0.25rem">초기화</button>';
+          (function() {
+            var hiddenInput = wrap.querySelector('input[name="siteMainImage"]');
+            var fileInput = wrap.querySelector('input[name="siteMainImageFile"]');
+            var preview = wrap.querySelector('.main-image-preview');
+            var statusEl = wrap.querySelector('.main-image-upload-status');
+            function setPreview(url) {
+              if (!url) { preview.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">이미지를 업로드하세요</span>'; return; }
+              var img = preview.querySelector('img');
+              if (!img) { img = document.createElement('img'); img.style.cssText = 'width:100%;height:auto;display:block'; preview.innerHTML = ''; preview.appendChild(img); }
+              img.src = url;
+              img.onerror = function() { preview.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">이미지를 불러올 수 없습니다</span>'; };
+            }
+            fileInput.addEventListener('change', function() {
+              var file = fileInput.files && fileInput.files[0];
+              if (!file || !file.type.match(/^image\//)) { statusEl.textContent = '이미지 파일을 선택하세요.'; return; }
+              statusEl.textContent = '업로드 중...';
+              var ext = (file.name.match(/\.[^.]+$/) || ['.jpg'])[0].toLowerCase();
+              if (!/^\.(jpe?g|png|gif|webp)$/.test(ext)) ext = '.jpg';
+              var path = 'main-image' + ext;
+              function onFail(e) {
+                var msg = (e && e.message) ? e.message : (e && e.error && e.error.message) ? e.error.message : String(e || '');
+                statusEl.textContent = '업로드 실패: ' + msg.slice(0, 100) + ' (Storage 버킷 "' + STORAGE_BUCKET + '" 생성·정책 확인)';
+              }
+              if (typeof supabase !== 'undefined') {
+                var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: file.type || undefined })
+                  .then(function(res) {
+                    if (res.error) { onFail(res.error); return; }
+                    var publicUrl = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+                    hiddenInput.value = publicUrl;
+                    setPreview(publicUrl);
+                    statusEl.textContent = '업로드 완료. 저장 버튼을 눌러 반영하세요.';
+                    renderPreview();
+                  })
+                  .catch(onFail);
+              } else {
+                var url = SUPABASE_URL + '/storage/v1/object/' + STORAGE_BUCKET + '/' + path;
+                fetch(url, {
+                  method: 'POST',
+                  headers: {
+                    'apikey': SUPABASE_ANON_KEY,
+                    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+                    'x-upsert': 'true',
+                    'Content-Type': file.type || 'image/jpeg'
+                  },
+                  body: file
+                }).then(function(r) {
+                  return r.text().then(function(t) {
+                    if (!r.ok) {
+                      var errMsg = t || 'HTTP ' + r.status;
+                      try { var j = JSON.parse(t); if (j.message) errMsg = j.message; else if (j.error) errMsg = j.error; } catch (e) {} 
+                      throw new Error(errMsg);
+                    }
+                    var publicUrl = SUPABASE_URL + '/storage/v1/object/public/' + STORAGE_BUCKET + '/' + path;
+                    hiddenInput.value = publicUrl;
+                    setPreview(publicUrl);
+                    statusEl.textContent = '업로드 완료. 저장 버튼을 눌러 반영하세요.';
+                    renderPreview();
+                  });
+                  }).catch(onFail);
+              }
+            });
+            var resetBtn = wrap.querySelector('.btn-reset-main-image');
+            if (resetBtn) resetBtn.addEventListener('click', function() {
+              hiddenInput.value = '';
+              fileInput.value = '';
+              setPreview('');
+              statusEl.textContent = '';
+              renderPreview();
+            });
+          })();
+        } else if (type === 'introText') {
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">소개 · 텍스트</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
+            '<label>내용 (글자 크기·색·정렬·볼드·밑줄 등)</label><div class="intro-summernote"></div>';
+        } else if (type === 'introImage') {
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">소개 · 이미지</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
+            '<input type="hidden" name="introImageUrl" value="' + escapeHtml(data.url || '') + '" />' +
+            '<label>이미지</label><input type="file" name="introImageFile" accept="image/*" style="margin-bottom:0.5rem" />' +
+            '<span class="intro-image-status" style="font-size:0.8rem;color:var(--text-muted);display:block;margin-bottom:0.5rem"></span>' +
+            '<div class="intro-image-preview" style="max-width:100%;max-height:120px;margin-top:0.25rem;border-radius:8px;overflow:hidden;background:var(--bg)">' +
+            (data.url ? '<img src="' + escapeHtml(data.url) + '" alt="" style="width:100%;height:auto;display:block" />' : '<span style="color:var(--text-muted);font-size:0.8rem">이미지를 업로드하세요</span>') + '</div>';
+          (function() {
+            var hiddenInput = wrap.querySelector('input[name="introImageUrl"]');
+            var fileInput = wrap.querySelector('input[name="introImageFile"]');
+            var preview = wrap.querySelector('.intro-image-preview');
+            var statusEl = wrap.querySelector('.intro-image-status');
+            function setPreview(url) {
+              if (!url) { preview.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">이미지를 업로드하세요</span>'; return; }
+              var img = preview.querySelector('img');
+              if (!img) { img = document.createElement('img'); img.style.cssText = 'width:100%;height:auto;display:block'; preview.innerHTML = ''; preview.appendChild(img); }
+              img.src = url;
+              img.onerror = function() { preview.innerHTML = '<span style="color:var(--text-muted);font-size:0.8rem">이미지를 불러올 수 없습니다</span>'; };
+            }
+            fileInput.addEventListener('change', function() {
+              var file = fileInput.files && fileInput.files[0];
+              if (!file || !file.type.match(/^image\//)) { statusEl.textContent = '이미지 파일을 선택하세요.'; return; }
+              statusEl.textContent = '업로드 중...';
+              var ext = (file.name.match(/\.[^.]+$/) || ['.jpg'])[0].toLowerCase();
+              if (!/^\.(jpe?g|png|gif|webp)$/.test(ext)) ext = '.jpg';
+              var path = 'intro/intro-' + Date.now() + ext;
+              function onFail(e) {
+                var msg = (e && e.message) ? e.message : String(e || '');
+                statusEl.textContent = '업로드 실패: ' + msg.slice(0, 80);
+              }
+              if (typeof supabase !== 'undefined') {
+                var supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                supabaseClient.storage.from(STORAGE_BUCKET).upload(path, file, { upsert: true, contentType: file.type || undefined })
+                  .then(function(res) {
+                    if (res.error) { onFail(res.error); return; }
+                    var publicUrl = supabaseClient.storage.from(STORAGE_BUCKET).getPublicUrl(path).data.publicUrl;
+                    hiddenInput.value = publicUrl;
+                    setPreview(publicUrl);
+                    statusEl.textContent = '업로드 완료. 저장 버튼을 눌러 반영하세요.';
+                    renderPreview();
+                  })
+                  .catch(onFail);
+              } else {
+                statusEl.textContent = 'Supabase를 불러와 주세요.';
+              }
+            });
+          })();
+        } else if (type === 'blog') {
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">블로그</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
+            '<label>블로그 설명</label><textarea name="blog" placeholder="블로그 링크·설명">' + escapeHtml(data.content || '') + '</textarea>';
+        } else if (type === 'contact') {
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">문의하기</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
+            '<label>이메일</label><input type="email" name="contactEmail" placeholder="contact@example.com" value="' + escapeHtml(data.contactEmail || '') + '" />' +
+            '<label>안내 문구</label><textarea name="contactText" placeholder="문의 안내">' + escapeHtml(data.contactText || '') + '</textarea>';
+        } else if (type === 'expert') {
+          wrap.innerHTML = '<div class="block-head"><span class="block-type">유튜브</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
+            '<label>제목</label><input type="text" name="expertName" placeholder="제목을 입력해주세요." value="' + escapeHtml(data.name || '') + '" />' +
+            '<label>태그</label><input type="text" name="expertRole" placeholder="쇼츠" value="' + escapeHtml(data.role || '') + '" />' +
+            '<label>설명</label><textarea name="expertDesc" rows="2" placeholder="소개">' + escapeHtml(data.description || '') + '</textarea>' +
+            '<label>유튜브 URL</label><input type="text" name="expertVideoId" placeholder="https://youtu.be/..." value="' + escapeHtml(data.videoId || '') + '" />';
+        }
+
+        var removeBtn = wrap.querySelector('.btn-remove-block');
+        if (removeBtn) removeBtn.addEventListener('click', function() {
+          wrap.remove();
+          renderPreview();
+        });
+
+        wrap.addEventListener('input', function() { renderPreview(); });
+        var handle = wrap.querySelector('.block-drag');
+        if (handle) {
+          handle.draggable = true;
+          handle.addEventListener('dragstart', function(e) {
+            e.dataTransfer.setData('text/plain', '');
+            wrap.classList.add('dragging');
+          });
+          handle.addEventListener('dragend', function() { wrap.classList.remove('dragging'); });
+        }
+        wrap.addEventListener('dragover', function(e) {
+          e.preventDefault();
+          if (wrap.classList.contains('dragging')) return;
+          wrap.classList.add('drag-over');
+        });
+        wrap.addEventListener('dragleave', function() { wrap.classList.remove('drag-over'); });
+        wrap.addEventListener('drop', function(e) {
+          e.preventDefault();
+          wrap.classList.remove('drag-over');
+          var src = document.querySelector('.content-block.dragging');
+          if (src && src !== wrap) {
+            var parent = blocksContainer;
+            var all = Array.from(parent.querySelectorAll('.content-block'));
+            var i = all.indexOf(src);
+            var j = all.indexOf(wrap);
+            if (i !== -1 && j !== -1) {
+              if (i < j) parent.insertBefore(src, wrap.nextSibling);
+              else parent.insertBefore(src, wrap);
+            }
+            renderPreview();
+          }
+        });
+
+        if (insertBefore) blocksContainer.insertBefore(wrap, insertBefore);
+        else blocksContainer.appendChild(wrap);
+
+        if (type === 'introText' && window.$ && $.fn.summernote) {
+          var snEl = wrap.querySelector('.intro-summernote');
+          if (snEl) {
+            $(snEl).summernote({
+              height: 200,
+              callbacks: {
+                onChange: function() { renderPreview(); }
+              }
+            });
+            $(snEl).summernote('code', data.content || '');
+          }
+        }
+
+        if (!noPreview) renderPreview();
+        return wrap;
+      }
+
+
+      document.getElementById('btn-save').addEventListener('click', function() {
+        var data = blocksToLegacy(getBlocksFromDOM());
+        var btn = document.getElementById('btn-save');
+        btn.disabled = true;
+        fetch(SUPABASE_URL + '/rest/v1/homepage_content', {
+          method: 'POST',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json',
+            'Prefer': 'resolution=merge-duplicates'
+          },
+          body: JSON.stringify({ id: 1, data: data })
+        })
+          .then(function(r) {
+            if (!r.ok) return r.text().then(function(t) { throw new Error(t || r.status); });
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
+            showMsg('저장되었습니다. 모든 방문자에게 반영됩니다.', 'success');
+          })
+          .catch(function(e) {
+            showMsg('저장 실패: ' + (e.message || '네트워크 오류').slice(0, 60), 'error');
+          })
+          .finally(function() { btn.disabled = false; });
+      });
+
+      function legacyToBlocks(legacy) {
+        var blocks = [];
+        if (legacy.siteTitle != null || legacy.siteSubtitle != null) {
+          blocks.push({ type: 'header', siteTitle: legacy.siteTitle || '', siteSubtitle: legacy.siteSubtitle || '', siteTitleColor: legacy.siteTitleColor || '' });
+        }
+        blocks.push({
+          type: 'bgColor',
+          color: legacy.siteBgColor || '',
+          navMode: (legacy.siteNavMode === 'light' ? 'light' : 'dark'),
+          textColor: legacy.siteTextColor || ''
+        });
+        blocks.push({ type: 'mainImage', url: legacy.siteMainImage || '' });
+        if (legacy.introBlocks && legacy.introBlocks.length) {
+          legacy.introBlocks.forEach(function(ib) {
+            if (ib.type === 'text') blocks.push({ type: 'introText', content: ib.content || '' });
+            else if (ib.type === 'image') blocks.push({ type: 'introImage', url: ib.url || '' });
+          });
+        } else {
+          blocks.push({ type: 'introText', content: legacy.intro || '' });
+        }
+        blocks.push({ type: 'blog', content: legacy.blog || '' });
+        blocks.push({ type: 'contact', contactEmail: legacy.contactEmail || '', contactText: legacy.contactText || '' });
+        var experts = legacy.experts || [];
+        if (experts.length) {
+          experts.forEach(function(ex) {
+            blocks.push({
+              type: 'expert',
+              name: ex.name || '',
+              role: ex.role || '',
+              description: ex.description || '',
+              videoId: ex.videoId || ''
+            });
+          });
+        } else {
+          // 전문가가 하나도 없으면 기본 입력용 블록 1개는 보여주기
+          blocks.push({ type: 'expert', name: '', role: '', description: '', videoId: '' });
+        }
+        return blocks;
+      }
+
+      function setBlocks(blocks) {
+        blocksContainer.innerHTML = '';
+        var list = blocks && blocks.length ? blocks : [
+          { type: 'header', siteTitle: '', siteSubtitle: '', siteTitleColor: '' },
+          { type: 'bgColor', color: '', navMode: 'dark', textColor: '' },
+          { type: 'mainImage', url: '' },
+          { type: 'introText', content: '' },
+          { type: 'blog', content: '' },
+          { type: 'contact', contactEmail: '', contactText: '' },
+          { type: 'expert', name: '', role: '', description: '', videoId: '' }
+        ];
+        list.forEach(function(b) {
+          var tab = getTabForType(b.type);
+          if (b.type === 'introText' || b.type === 'introImage') {
+            addBlock(b.type, b, null, true);
+          } else {
+            blocksContainer.appendChild(createAddBtn(tab));
+            addBlock(b.type, b, null, true);
+          }
+        });
+        var lastType = list.length ? list[list.length - 1].type : '';
+        if (list.length && lastType !== 'introText' && lastType !== 'introImage') {
+          blocksContainer.appendChild(createAddBtn(getTabForType(lastType)));
+        }
+        renderPreview();
+        filterByTab();
+      }
+
+      function loadFromSupabase() {
+        return fetch(SUPABASE_URL + '/rest/v1/homepage_content?id=eq.1', {
+          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': 'Bearer ' + SUPABASE_ANON_KEY, 'Accept': 'application/json' }
+        }).then(function(r) { return r.json(); }).then(function(rows) {
+          return (rows && rows[0] && rows[0].data) ? rows[0].data : null;
+        });
+      }
+
+      loadFromSupabase()
+        .then(function(data) {
+          if (data && (data.siteTitle != null || (data.experts && data.experts.length) || data.introBlocks != null || data.intro != null)) {
+            setBlocks(legacyToBlocks(data));
+            return;
+          }
+          var stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) try { setBlocks(legacyToBlocks(JSON.parse(stored))); return; } catch (e) {}
+          return fetch('data.json').then(function(r) { return r.ok ? r.json() : null; });
+        })
+        .then(function(data) {
+          if (data && typeof data === 'object' && !data.experts && !data.siteTitle) return;
+          if (data) setBlocks(legacyToBlocks(data));
+        })
+        .catch(function() {
+          var stored = localStorage.getItem(STORAGE_KEY);
+          if (stored) try { setBlocks(legacyToBlocks(JSON.parse(stored))); } catch (e) {}
+          fetch('data.json').then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
+            if (d) setBlocks(legacyToBlocks(d));
+            else setBlocks([]);
+          }).catch(function() { setBlocks([]); });
+        });
+
+      document.querySelectorAll('.admin-tab[data-tab]').forEach(function(tab) {
+        tab.addEventListener('click', function(e) {
+          if (tab.getAttribute('href') === '#') e.preventDefault();
+          currentTab = tab.getAttribute('data-tab');
+          document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+          tab.classList.add('active');
+          filterByTab();
+        });
+      });
+
+      (function() {
+        var btnAddIntro = document.getElementById('btn-add-intro');
+        var introAddDropdown = document.getElementById('intro-add-dropdown');
+        if (btnAddIntro && introAddDropdown) {
+          btnAddIntro.addEventListener('click', function(e) {
+            e.stopPropagation();
+            introAddDropdown.style.display = introAddDropdown.style.display === 'none' ? 'block' : 'none';
+          });
+          introAddDropdown.querySelectorAll('.btn-add-choice').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+              var blockType = btn.getAttribute('data-type');
+              var introBlocks = blocksContainer.querySelectorAll('.content-block[data-tab="intro"]');
+              var lastIntro = introBlocks.length ? introBlocks[introBlocks.length - 1] : null;
+              addBlock(blockType, {}, lastIntro ? lastIntro.nextSibling : null, true);
+              introAddDropdown.style.display = 'none';
+              renderPreview();
+            });
+          });
+          document.addEventListener('click', function() {
+            introAddDropdown.style.display = 'none';
+          });
+          introAddDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+        }
+      })();
+    })();
+  </script>
+</body>
+</html>

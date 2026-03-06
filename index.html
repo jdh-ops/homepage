@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>전문가 소개 | 홍보 홈페이지</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0f1419;
+      --card: #1a2332;
+      --text: #e6edf3;
+      --text-muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-soft: rgba(88, 166, 255, 0.15);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .nav {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      padding: 1rem 1.5rem;
+      background: var(--card);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      flex-wrap: wrap;
+    }
+
+    .nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      padding: 0.6rem 1.2rem;
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-radius: 8px;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .nav a:hover {
+      color: var(--text);
+      background: var(--accent-soft);
+    }
+
+    .nav a.active {
+      color: var(--accent);
+      background: var(--accent-soft);
+    }
+
+    .nav.nav-light {
+      background: #dbeafe;
+      border-bottom-color: rgba(30,64,175,0.25);
+    }
+    .nav.nav-light a {
+      color: #1e3a8a;
+    }
+    .nav.nav-light a:hover {
+      color: #1e40af;
+      background: rgba(59,130,246,0.15);
+    }
+    .nav.nav-light a.active {
+      color: #1d4ed8;
+      background: rgba(59,130,246,0.25);
+    }
+
+    .header {
+      padding: 3rem 1.5rem;
+      text-align: center;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .header h1 {
+      font-size: clamp(1.75rem, 4vw, 2.25rem);
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .header p {
+      font-size: 1rem;
+    }
+
+    .header.has-bg-image {
+      background-size: cover;
+      background-position: center;
+      min-height: min(420px, 50vh);
+      padding: 2rem 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+      box-sizing: border-box;
+    }
+    .header.has-bg-image::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: rgba(0,0,0,0);
+      pointer-events: none;
+    }
+    .header.has-bg-image h1,
+    .header.has-bg-image p {
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .page {
+      display: none;
+      animation: fadeIn 0.25s ease;
+    }
+
+    .page.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .page-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    .intro-text, .blog-text, .contact-text {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+      line-height: 1.5;
+    }
+    .intro-block-text, .intro-block-image {
+      margin-top: 0.75rem;
+    }
+    .intro-block-text {
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text);
+    }
+    .intro-block-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .intro-block-text a:hover {
+      text-decoration: underline;
+    }
+
+    .contact-text a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .contact-text a:hover {
+      text-decoration: underline;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    .experts-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1.5rem;
+      color: var(--text);
+    }
+
+    .expert-card {
+      background: var(--card);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .expert-card:last-child {
+      margin-bottom: 0;
+    }
+
+    .expert-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+
+    .expert-role {
+      color: var(--accent);
+      font-size: 0.9rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .expert-desc {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-bottom: 1rem;
+    }
+
+    .youtube-wrap {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      border-radius: 8px;
+      background: #000;
+    }
+
+    .youtube-wrap iframe {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+    }
+
+    .youtube-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
+    }
+
+    .youtube-link:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1rem;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+
+    .admin-gate {
+      position: absolute;
+      left: 50%;
+      bottom: 0.5rem;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 28px;
+      opacity: 0;
+      cursor: pointer;
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+  <nav class="nav">
+    <a href="#" class="nav-link active" data-page="intro">소개</a>
+    <a href="#" class="nav-link" data-page="blog">블로그</a>
+    <a href="#" class="nav-link" data-page="youtube">유튜브</a>
+    <a href="#" class="nav-link" data-page="contact">문의하기</a>
+  </nav>
+
+  <header class="header" id="site-header">
+    <h1 id="site-title">임시점검 중</h1>
+    <p id="site-subtitle">임시점검 중입니다.</p>
+  </header>
+
+  <main class="container">
+    <section id="page-intro" class="page active">
+      <!-- <h2 class="page-title">소개</h2> -->
+      <div id="intro-content"></div>
+    </section>
+
+    <section id="page-blog" class="page">
+      <h2 class="page-title">블로그</h2>
+      <p class="blog-text" id="blog-text"></p>
+    </section>
+
+    <section id="page-youtube" class="page">
+      <h2 class="page-title">유튜브</h2>
+      <div id="experts-list"></div>
+    </section>
+
+    <section id="page-contact" class="page">
+      <h2 class="page-title">문의하기</h2>
+      <p class="contact-text" id="contact-text"></p>
+    </section>
+  </main>
+
+  <footer>
+    <p>© 2025 홍보 홈페이지. 필요에 따라 문구를 수정해 사용하세요.</p>
+    <a href="admin.html" class="admin-gate" aria-label="관리자"></a>
+  </footer>
+
+  <script>
+    (function() {
+      var DEFAULT_DATA = {
+        siteTitle: "전문가 소개",
+        siteSubtitle: "우리 팀의 전문가들을 만나보세요",
+        intro: "여기에 서비스나 팀에 대한 소개 내용을 넣어주세요.",
+        blog: "블로그 글 목록이나 최신 포스트 링크를 이곳에 넣을 수 있습니다.",
+        contactEmail: "contact@example.com",
+        contactText: "문의는 이메일로 보내주시거나, 원하시는 연락처를 안내해 주세요.",
+        experts: [
+          { name: "홍길동", role: "대표 전문가 · 10년 경력", description: "비즈니스 전략과 리더십 코칭 전문가입니다.", videoId: "VIDEO_ID_1" },
+          { name: "김영희", role: "시니어 컨설턴트 · 마케팅", description: "디지털 마케팅과 브랜드 전략을 담당합니다.", videoId: "VIDEO_ID_2" },
+          { name: "이철수", role: "기술 전문가 · 개발/IT", description: "소프트웨어 아키텍처와 기술 전략을 담당합니다.", videoId: "VIDEO_ID_3" }
+        ]
+      };
+
+      function applyData(data) {
+        var fullBg = (data.siteBgColor && data.siteBgColor.trim()) ? data.siteBgColor.trim() : '';
+        document.body.style.backgroundColor = fullBg;
+        var navMode = data.siteNavMode === 'light' ? 'light' : 'dark';
+        var textColor = (data.siteTextColor && data.siteTextColor.trim())
+          ? data.siteTextColor.trim()
+          : (navMode === 'light' ? '#24292f' : '#e6edf3');
+        try {
+          document.documentElement.style.setProperty('--bg', fullBg || '#0f1419');
+          document.documentElement.style.setProperty('--text', textColor);
+        } catch (e) {}
+        var navEl = document.querySelector('.nav');
+        if (navEl) {
+          if (navMode === 'light') navEl.classList.add('nav-light');
+          else navEl.classList.remove('nav-light');
+        }
+        var headerEl = document.getElementById('site-header');
+        document.getElementById('site-title').textContent = data.siteTitle || DEFAULT_DATA.siteTitle;
+        document.getElementById('site-subtitle').textContent = data.siteSubtitle || DEFAULT_DATA.siteSubtitle;
+        var titleColor = (data.siteTitleColor && data.siteTitleColor.trim()) ? data.siteTitleColor.trim() : '';
+        document.getElementById('site-title').style.color = titleColor || '';
+        document.getElementById('site-subtitle').style.color = titleColor || '';
+        var imgUrl = (data.siteMainImage && data.siteMainImage.trim()) ? data.siteMainImage.trim() : '';
+        if (imgUrl) {
+          headerEl.style.backgroundImage = 'url(' + escapeHtml(imgUrl) + ')';
+          headerEl.classList.add('has-bg-image');
+        } else {
+          headerEl.style.backgroundImage = '';
+          headerEl.classList.remove('has-bg-image');
+        }
+        var introContainer = document.getElementById('intro-content');
+        introContainer.innerHTML = '';
+        (data.introBlocks || []).forEach(function(ib) {
+          if (ib.type === 'text') {
+            var div = document.createElement('div');
+            div.className = 'intro-block-text';
+            div.innerHTML = ib.content || '';
+            introContainer.appendChild(div);
+          } else if (ib.type === 'image' && (ib.url || '').trim()) {
+            var wrap = document.createElement('div');
+            wrap.className = 'intro-block-image';
+            var img = document.createElement('img');
+            img.src = ib.url.trim();
+            img.alt = '';
+            img.style.maxWidth = '100%';
+            img.style.height = 'auto';
+            img.style.display = 'block';
+            img.style.borderRadius = '8px';
+            wrap.appendChild(img);
+            introContainer.appendChild(wrap);
+          }
+        });
+        document.getElementById('blog-text').textContent = data.blog || DEFAULT_DATA.blog;
+
+        var email = data.contactEmail || DEFAULT_DATA.contactEmail;
+        var contactStr = (data.contactText || DEFAULT_DATA.contactText).replace(/\n/g, '<br>');
+        document.getElementById('contact-text').innerHTML = contactStr + (email ? ' <a href="mailto:' + escapeHtml(email) + '">' + escapeHtml(email) + '</a>' : '');
+
+        var experts = data.experts && data.experts.length ? data.experts : DEFAULT_DATA.experts;
+        var listEl = document.getElementById('experts-list');
+        listEl.innerHTML = experts.map(function(ex) {
+          var id = extractYouTubeId(ex.videoId || '');
+          return '<article class="expert-card">' +
+            '<h3 class="expert-name">' + escapeHtml(ex.name) + '</h3>' +
+            '<p class="expert-role">' + escapeHtml(ex.role) + '</p>' +
+            '<p class="expert-desc">' + escapeHtml(ex.description) + '</p>' +
+            (id ? '<div class="youtube-wrap"><iframe src="https://www.youtube.com/embed/' + escapeHtml(id) + '" title="YouTube video" allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowfullscreen></iframe></div>' +
+              '<a class="youtube-link" href="https://www.youtube.com/watch?v=' + escapeHtml(id) + '" target="_blank" rel="noopener">유튜브에서 보기 ↗</a>' : '') +
+            '</article>';
+        }).join('');
+      }
+
+      function escapeHtml(s) {
+        if (!s) return '';
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      // 유튜브 URL 또는 ID에서 영상 ID만 추출
+      function extractYouTubeId(input) {
+        if (!input) return '';
+        var s = ('' + input).trim();
+        if (/^[a-zA-Z0-9_-]{6,}$/.test(s) && s.indexOf('http') !== 0) return s;
+        try {
+          var url = new URL(s);
+          if (url.hostname === 'youtu.be') {
+            return url.pathname.replace('/', '').split('?')[0];
+          }
+          if (url.hostname.indexOf('youtube.com') !== -1) {
+            var v = url.searchParams.get('v');
+            if (v) return v;
+            var parts = url.pathname.split('/');
+            var last = parts[parts.length - 1];
+            if (last) return last;
+          }
+        } catch (e) {}
+        return s;
+      }
+
+      var SUPABASE_URL = 'https://lirxlbbbmqcsbnjnyqkg.supabase.co';
+      var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcnhsYmJibXFjc2Juam55cWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDk2MTIsImV4cCI6MjA4MjE4NTYxMn0.06V04-rJsbChPIGUJQemxZH6Ss16vArJRKGyQejf_JE';
+
+      function loadContent() {
+        fetch(SUPABASE_URL + '/rest/v1/homepage_content?id=eq.1', {
+          method: 'GET',
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'Accept': 'application/json'
+          }
+        })
+          .then(function(r) { return r.json(); })
+          .then(function(rows) {
+            if (rows && rows[0] && rows[0].data && Object.keys(rows[0].data).length > 0) {
+              applyData(rows[0].data);
+              return;
+            }
+            throw new Error('no data');
+          })
+          .catch(function() {
+            var stored = localStorage.getItem('homepage-data');
+            if (stored) {
+              try {
+                applyData(JSON.parse(stored));
+                return;
+              } catch (e) {}
+            }
+            return fetch('data.json')
+              .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
+              .then(function(data) { applyData(data); })
+              .catch(function() { applyData(DEFAULT_DATA); });
+          });
+      }
+
+      loadContent();
+
+      var navLinks = document.querySelectorAll('.nav-link');
+      var pages = document.querySelectorAll('.page');
+      function showPage(pageId) {
+        pages.forEach(function(p) {
+          p.classList.toggle('active', p.id === 'page-' + pageId);
+        });
+        navLinks.forEach(function(a) {
+          a.classList.toggle('active', a.getAttribute('data-page') === pageId);
+        });
+      }
+      navLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          showPage(link.getAttribute('data-page'));
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
