@@ -172,6 +172,123 @@
       text-decoration: underline;
     }
 
+    .blog-entry {
+      display: flex;
+      align-items: stretch;
+      margin-top: 1rem;
+      min-height: 200px;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      overflow: hidden;
+      background: var(--card);
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .blog-entry:hover {
+      background: rgba(26, 35, 50, 0.95);
+      border-color: rgba(255,255,255,0.18);
+    }
+    .blog-entry-thumbnail {
+      width: 240px;
+      min-width: 240px;
+      min-height: 200px;
+      flex-shrink: 0;
+      overflow: hidden;
+      background: rgba(0,0,0,0.2);
+    }
+    .blog-entry-thumbnail img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .blog-entry-thumbnail:empty::after {
+      content: '';
+      display: block;
+      width: 100%;
+      height: 100%;
+      min-height: 200px;
+      background: rgba(255,255,255,0.05);
+    }
+    .blog-entry-title-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      padding: 1rem 1.25rem;
+    }
+    .blog-entry-title {
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--text);
+      line-height: 1.4;
+    }
+
+    .blog-modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.6);
+      z-index: 9000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      box-sizing: border-box;
+    }
+    .blog-modal-overlay.is-open {
+      display: flex;
+    }
+    .blog-modal {
+      background: var(--card);
+      border-radius: 12px;
+      max-width: 640px;
+      width: 100%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .blog-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      flex-shrink: 0;
+    }
+    .blog-modal-title {
+      font-weight: 700;
+      font-size: 1.2rem;
+      color: var(--text);
+    }
+    .blog-modal-close {
+      padding: 0.4rem 0.75rem;
+      border: none;
+      background: rgba(255,255,255,0.1);
+      color: var(--text);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .blog-modal-close:hover {
+      background: rgba(255,255,255,0.15);
+    }
+    .blog-modal-body {
+      padding: 1.25rem;
+      overflow: auto;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      color: var(--text-muted);
+    }
+    .blog-modal-body a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .blog-modal-body a:hover {
+      text-decoration: underline;
+    }
+
     .container {
       max-width: 960px;
       margin: 0 auto;
@@ -267,9 +384,33 @@
       cursor: pointer;
       z-index: 1;
     }
+
+    #loading-overlay {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.2s;
+    }
+    #loading-overlay.hidden { display: none; }
+    #loading-overlay .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
+  <div id="loading-overlay" aria-hidden="true">
+    <div class="spinner"></div>
+  </div>
   <nav class="nav">
     <a href="#" class="nav-link active" data-page="intro">소개</a>
     <a href="#" class="nav-link" data-page="blog">블로그</a>
@@ -290,7 +431,7 @@
 
     <section id="page-blog" class="page">
       <h2 class="page-title">블로그</h2>
-      <p class="blog-text" id="blog-text"></p>
+      <div id="blog-container"></div>
     </section>
 
     <section id="page-youtube" class="page">
@@ -304,6 +445,16 @@
     </section>
   </main>
 
+  <div id="blog-modal-overlay" class="blog-modal-overlay" aria-hidden="true">
+    <div class="blog-modal" role="dialog" aria-modal="true" aria-labelledby="blog-modal-title">
+      <div class="blog-modal-header">
+        <h2 id="blog-modal-title" class="blog-modal-title"></h2>
+        <button type="button" class="blog-modal-close" aria-label="닫기">닫기</button>
+      </div>
+      <div class="blog-modal-body"></div>
+    </div>
+  </div>
+
   <footer>
     <p>© 2025 홍보 홈페이지. 필요에 따라 문구를 수정해 사용하세요.</p>
     <a href="admin.html" class="admin-gate" aria-label="관리자"></a>
@@ -315,7 +466,7 @@
         siteTitle: "전문가 소개",
         siteSubtitle: "우리 팀의 전문가들을 만나보세요",
         intro: "여기에 서비스나 팀에 대한 소개 내용을 넣어주세요.",
-        blog: "블로그 글 목록이나 최신 포스트 링크를 이곳에 넣을 수 있습니다.",
+        blog: { title: '', thumbnail: '', content: '블로그 글 목록이나 최신 포스트 링크를 이곳에 넣을 수 있습니다.' },
         contactEmail: "contact@example.com",
         contactText: "문의는 이메일로 보내주시거나, 원하시는 연락처를 안내해 주세요.",
         experts: [
@@ -377,7 +528,58 @@
             introContainer.appendChild(wrap);
           }
         });
-        document.getElementById('blog-text').textContent = data.blog || DEFAULT_DATA.blog;
+        var blogData = data.blog && typeof data.blog === 'object' ? data.blog : { title: '', thumbnail: '', content: typeof data.blog === 'string' ? data.blog : (DEFAULT_DATA.blog && DEFAULT_DATA.blog.content) || '' };
+        var blogContainer = document.getElementById('blog-container');
+        blogContainer.innerHTML = '';
+        var entry = document.createElement('div');
+        entry.className = 'blog-entry';
+        var thumbWrap = document.createElement('div');
+        thumbWrap.className = 'blog-entry-thumbnail';
+        if ((blogData.thumbnail || '').trim()) {
+          var thumbImg = document.createElement('img');
+          thumbImg.src = blogData.thumbnail.trim();
+          thumbImg.alt = '';
+          thumbImg.onerror = function() { thumbWrap.innerHTML = ''; };
+          thumbWrap.appendChild(thumbImg);
+        }
+        entry.appendChild(thumbWrap);
+        var titleWrap = document.createElement('div');
+        titleWrap.className = 'blog-entry-title-wrap';
+        var titleEl = document.createElement('div');
+        titleEl.className = 'blog-entry-title';
+        titleEl.textContent = blogData.title || '블로그';
+        titleWrap.appendChild(titleEl);
+        entry.appendChild(titleWrap);
+        entry.addEventListener('click', function() {
+          var overlay = document.getElementById('blog-modal-overlay');
+          var modalTitle = overlay && overlay.querySelector('.blog-modal-title');
+          var modalBody = overlay && overlay.querySelector('.blog-modal-body');
+          if (overlay && modalTitle && modalBody) {
+            modalTitle.textContent = blogData.title || '블로그';
+            modalBody.innerHTML = blogData.content || '';
+            overlay.classList.add('is-open');
+            overlay.setAttribute('aria-hidden', 'false');
+          }
+        });
+        blogContainer.appendChild(entry);
+
+        var overlay = document.getElementById('blog-modal-overlay');
+        if (overlay && !overlay._blogCloseBound) {
+          overlay._blogCloseBound = true;
+          overlay.addEventListener('click', function(e) {
+            if (e.target === overlay) {
+              overlay.classList.remove('is-open');
+              overlay.setAttribute('aria-hidden', 'true');
+            }
+          });
+          var closeBtn = overlay.querySelector('.blog-modal-close');
+          if (closeBtn) closeBtn.addEventListener('click', function() {
+            overlay.classList.remove('is-open');
+            overlay.setAttribute('aria-hidden', 'true');
+          });
+          var modalBox = overlay.querySelector('.blog-modal');
+          if (modalBox) modalBox.addEventListener('click', function(e) { e.stopPropagation(); });
+        }
 
         var email = data.contactEmail || DEFAULT_DATA.contactEmail;
         var contactStr = (data.contactText || DEFAULT_DATA.contactText).replace(/\n/g, '<br>');
@@ -429,7 +631,7 @@
       var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcnhsYmJibXFjc2Juam55cWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDk2MTIsImV4cCI6MjA4MjE4NTYxMn0.06V04-rJsbChPIGUJQemxZH6Ss16vArJRKGyQejf_JE';
 
       function loadContent() {
-        fetch(SUPABASE_URL + '/rest/v1/homepage_content?id=eq.1', {
+        return fetch(SUPABASE_URL + '/rest/v1/homepage_content?id=eq.1', {
           method: 'GET',
           headers: {
             'apikey': SUPABASE_ANON_KEY,
@@ -457,6 +659,15 @@
               .then(function(r) { return r.ok ? r.json() : Promise.reject(); })
               .then(function(data) { applyData(data); })
               .catch(function() { applyData(DEFAULT_DATA); });
+          })
+          .then(function() {
+            return new Promise(function(r) { setTimeout(r, 400); });
+          })
+          .then(function() {
+            var overlay = document.getElementById('loading-overlay');
+            if (overlay) overlay.classList.add('hidden');
+            var saved = sessionStorage.getItem('homepage-page');
+            if (saved && ['intro','blog','youtube','contact'].indexOf(saved) !== -1) showPage(saved);
           });
       }
 
@@ -475,7 +686,9 @@
       navLinks.forEach(function(link) {
         link.addEventListener('click', function(e) {
           e.preventDefault();
-          showPage(link.getAttribute('data-page'));
+          var pageId = link.getAttribute('data-page');
+          try { sessionStorage.setItem('homepage-page', pageId); } catch (err) {}
+          showPage(pageId);
         });
       });
     })();

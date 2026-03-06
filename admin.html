@@ -42,6 +42,26 @@
       z-index: 1000;
     }
     #admin-login.hidden { display: none; }
+
+    #admin-loading-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+    }
+    #admin-loading-overlay.hidden { display: none; }
+    #admin-loading-overlay .spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid rgba(255,255,255,0.15);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: admin-spin 0.8s linear infinite;
+    }
+    @keyframes admin-spin { to { transform: rotate(360deg); } }
     .login-box {
       background: var(--card);
       padding: 2rem;
@@ -118,7 +138,22 @@
     .admin-preview {
       padding: 1.5rem;
       border-right: 1px solid rgba(255,255,255,0.06);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+    #preview-area {
       overflow: auto;
+      flex: 1;
+      min-height: 0;
+    }
+    #preview-area .preview-outer {
+      overflow: hidden;
+    }
+    #preview-area .preview-viewport {
+      width: 960px;
+      transform-origin: 0 0;
+      box-sizing: border-box;
     }
     .admin-preview h2 {
       font-size: 1.05rem;
@@ -156,7 +191,7 @@
     }
     #preview-area .idx-header h1 { font-size: 1.25rem; font-weight: 700; margin-bottom: 0.25rem; }
     #preview-area .idx-header p { color: var(--text-muted); font-size: 0.9rem; }
-    #preview-area .idx-container { padding: 1rem; max-width: 100%; }
+    #preview-area .idx-container { padding: 1rem; max-width: 960px; box-sizing: border-box; }
     #preview-area .idx-page { display: none; }
     #preview-area .idx-page.idx-active { display: block; }
     #preview-area .idx-page-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.75rem; color: var(--text); }
@@ -360,7 +395,10 @@
     </div>
   </div>
 
-  <div id="admin-content" style="display: none;">
+  <div id="admin-content" style="display: none; position: relative;">
+    <div id="admin-loading-overlay" aria-hidden="true">
+      <div class="spinner"></div>
+    </div>
     <nav class="admin-nav">
       <a href="#" class="admin-tab active" data-tab="main">대문</a>
       <a href="#" class="admin-tab" data-tab="intro">소개</a>
@@ -401,11 +439,12 @@
   <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
   <script>
     (function() {
-      var ADMIN_PASSWORD = 'admin';
       var AUTH_KEY = 'admin-auth';
+      var AUTH_TOKEN_KEY = 'admin-token';
       var STORAGE_KEY = 'homepage-data';
       var SUPABASE_URL = 'https://lirxlbbbmqcsbnjnyqkg.supabase.co';
       var SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcnhsYmJibXFjc2Juam55cWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDk2MTIsImV4cCI6MjA4MjE4NTYxMn0.06V04-rJsbChPIGUJQemxZH6Ss16vArJRKGyQejf_JE';
+      var FUNCTIONS_URL = SUPABASE_URL + '/functions/v1';
       var STORAGE_BUCKET = 'homepage';
 
       var loginEl = document.getElementById('admin-login');
@@ -414,15 +453,42 @@
       var pwSubmit = document.getElementById('admin-pw-submit');
       var loginErr = document.getElementById('login-err');
 
-      function grantAccess() {
-        try { sessionStorage.setItem(AUTH_KEY, '1'); } catch (e) {}
+      function grantAccess(token) {
+        try {
+          sessionStorage.setItem(AUTH_KEY, '1');
+          if (token) sessionStorage.setItem(AUTH_TOKEN_KEY, token);
+        } catch (e) {}
         loginEl.classList.add('hidden');
         contentEl.style.display = 'block';
       }
-      if (sessionStorage.getItem(AUTH_KEY) === '1') grantAccess();
+      if (sessionStorage.getItem(AUTH_KEY) === '1' && sessionStorage.getItem(AUTH_TOKEN_KEY)) grantAccess();
       pwSubmit.addEventListener('click', function() {
-        if (pwInput.value === ADMIN_PASSWORD) { loginErr.classList.remove('visible'); grantAccess(); }
-        else { loginErr.classList.add('visible'); pwInput.focus(); }
+        var pw = pwInput.value;
+        if (!pw) { loginErr.classList.remove('visible'); pwInput.focus(); return; }
+        loginErr.classList.remove('visible');
+        pwSubmit.disabled = true;
+        fetch(FUNCTIONS_URL + '/admin-login', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ password: pw })
+        })
+          .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+          .then(function(result) {
+            if (result.ok && result.data && result.data.token) {
+              grantAccess(result.data.token);
+            } else {
+              loginErr.classList.add('visible');
+              pwInput.focus();
+            }
+          })
+          .catch(function() {
+            loginErr.classList.add('visible');
+            pwInput.focus();
+          })
+          .finally(function() { pwSubmit.disabled = false; });
       });
       pwInput.addEventListener('keydown', function(e) { if (e.key === 'Enter') pwSubmit.click(); });
 
@@ -482,7 +548,16 @@
           } else if (type === 'introImage') {
             blocks.push({ type: 'introImage', url: (el.querySelector('[name="introImageUrl"]') || {}).value || '' });
           } else if (type === 'blog') {
-            blocks.push({ type: 'blog', content: (el.querySelector('[name="blog"]') || {}).value || '' });
+            var blogSn = el.querySelector('.blog-summernote');
+            var blogHtml = '';
+            if (blogSn && window.$ && $.fn.summernote) { try { blogHtml = $(blogSn).summernote('code') || ''; } catch (err) { blogHtml = blogSn.innerHTML || ''; } }
+            else if (blogSn) blogHtml = blogSn.innerHTML || '';
+            blocks.push({
+              type: 'blog',
+              title: (el.querySelector('[name="blogTitle"]') || {}).value || '',
+              thumbnail: (el.querySelector('[name="blogThumbnail"]') || {}).value || '',
+              content: blogHtml
+            });
           } else if (type === 'contact') {
             blocks.push({
               type: 'contact',
@@ -530,7 +605,7 @@
           siteTextColor: (bgColor.textColor || '').trim(),
           siteMainImage: (mainImage.url || '').trim(),
           introBlocks: introBlocks,
-          blog: blog.content || '',
+          blog: { title: blog.title || '', thumbnail: blog.thumbnail || '', content: blog.content || '' },
           contactEmail: (contact.contactEmail || '').trim(),
           contactText: contact.contactText || '',
           experts: experts.map(function(e) { return { name: e.name, role: e.role, description: e.description, videoId: e.videoId }; })
@@ -575,7 +650,13 @@
           return '';
         }).join('');
         if (!introBlocksHtml) introBlocksHtml = '<p class="intro-text" style="color:var(--text-muted)">텍스트 또는 이미지 블록을 추가하세요.</p>';
-        var blogBody = escapeHtml((data.blog || '')).replace(/\n/g, '<br>');
+        var blogData = data.blog && typeof data.blog === 'object' ? data.blog : { title: '', thumbnail: '', content: typeof data.blog === 'string' ? data.blog : '' };
+        var blogTitle = escapeHtml(blogData.title || '');
+        var blogThumb = (blogData.thumbnail || '').trim();
+        var blogPreviewHtml = '<div class="blog-preview-card" style="margin-top:0.75rem;border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;background:var(--card)">' +
+          (blogTitle ? '<div class="blog-preview-title" style="padding:0.5rem 0.75rem;font-weight:600">' + blogTitle + '</div>' : '') +
+          (blogThumb ? '<div class="blog-preview-thumb" style="max-height:120px;overflow:hidden"><img src="' + escapeHtml(blogThumb) + '" alt="" style="width:100%;height:auto;display:block" onerror="this.style.display=\'none\'" /></div>' : '') +
+          '<div class="blog-preview-content" style="padding:0.75rem;font-size:0.9rem;color:var(--text-muted);line-height:1.5">' + (blogData.content || '본문을 입력하세요.') + '</div></div>';
         var contactBody = escapeHtml((data.contactText || '')).replace(/\n/g, '<br>') + (data.contactEmail ? ' <a href="mailto:' + escapeHtml(data.contactEmail) + '">' + escapeHtml(data.contactEmail) + '</a>' : '');
         var expertsHtml = '';
         (data.experts || []).forEach(function(ex) {
@@ -589,7 +670,7 @@
         });
         var mainHtml = '<main class="idx-container" style="color:' + textColor + '">' +
           '<section class="idx-page idx-intro' + introActive + '"><h2 class="idx-page-title"></h2>' + introBlocksHtml + '</section>' +
-          '<section class="idx-page idx-blog' + blogActive + '"><h2 class="idx-page-title">블로그</h2><p class="blog-text">' + blogBody + '</p></section>' +
+          '<section class="idx-page idx-blog' + blogActive + '"><h2 class="idx-page-title">블로그</h2>' + blogPreviewHtml + '</section>' +
           '<section class="idx-page idx-youtube' + ytActive + '"><h2 class="idx-page-title">유튜브</h2><div class="idx-experts">' + (expertsHtml || '<p class="expert-desc" style="color:var(--text-muted)">전문가 블록을 추가하세요.</p>') + '</div></section>' +
           '<section class="idx-page idx-contact' + contactActive + '"><h2 class="idx-page-title">문의하기</h2><p class="contact-text">' + contactBody + '</p></section>' +
           '</main>';
@@ -601,10 +682,12 @@
             headerStyle += 'box-sizing:border-box;padding:2rem 1rem;display:flex;flex-direction:column;align-items:center;justify-content:center;';
             headerStyle += 'box-shadow:inset 0 0 0 9999px rgba(0,0,0,0);';
           }
-          previewArea.innerHTML = '<div style="background-color:' + fullBg + ';min-height:100%;padding-bottom:1rem">' + navHtml + '<div class="idx-header" style="' + headerStyle + '">' + '<h1 style="' + titleColorStyle + '">' + escapeHtml(title) + '</h1><p style="' + titleColorStyle + '">' + escapeHtml(subtitle) + '</p></div></div>';
+          previewArea.innerHTML = '<div class="preview-outer"><div class="preview-viewport" style="background-color:' + fullBg + ';min-height:100%;padding-bottom:1rem">' + navHtml + '<div class="idx-header" style="' + headerStyle + '">' + '<h1 style="' + titleColorStyle + '">' + escapeHtml(title) + '</h1><p style="' + titleColorStyle + '">' + escapeHtml(subtitle) + '</p></div></div></div>';
         } else {
-          previewArea.innerHTML = '<div style="background-color:' + fullBg + ';min-height:100%;padding-bottom:1rem">' + navHtml + headerHtml + mainHtml + '</div>';
+          previewArea.innerHTML = '<div class="preview-outer"><div class="preview-viewport" style="background-color:' + fullBg + ';min-height:100%;padding-bottom:1rem">' + navHtml + headerHtml + mainHtml + '</div></div>';
         }
+        applyPreviewScale();
+        setTimeout(function() { applyPreviewScale(); }, 0);
         previewArea.parentElement.style.backgroundColor = fullBg;
         var editPanel = document.querySelector('.admin-edit');
         if (editPanel) editPanel.style.backgroundColor = fullBg;
@@ -613,6 +696,19 @@
             el.style.backgroundColor = fullBg;
           });
         } catch (e) {}
+      }
+
+      function applyPreviewScale() {
+        var area = document.getElementById('preview-area');
+        var outer = area && area.querySelector('.preview-outer');
+        var viewport = area && area.querySelector('.preview-viewport');
+        if (!outer || !viewport) return;
+        var w = area.clientWidth;
+        if (w <= 0) return;
+        var scale = w < 960 ? w / 960 : 1;
+        viewport.style.transform = 'scale(' + scale + ')';
+        outer.style.width = (960 * scale) + 'px';
+        outer.style.height = (viewport.offsetHeight * scale) + 'px';
       }
 
       function escapeHtml(s) {
@@ -885,7 +981,9 @@
           })();
         } else if (type === 'blog') {
           wrap.innerHTML = '<div class="block-head"><span class="block-type">블로그</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
-            '<label>블로그 설명</label><textarea name="blog" placeholder="블로그 링크·설명">' + escapeHtml(data.content || '') + '</textarea>';
+            '<label>제목</label><input type="text" name="blogTitle" placeholder="블로그 글 제목" value="' + escapeHtml(data.title || '') + '" />' +
+            '<label>섬네일 (이미지 URL)</label><input type="text" name="blogThumbnail" placeholder="https://..." value="' + escapeHtml(data.thumbnail || '') + '" />' +
+            '<label>본문 (편집기)</label><div class="blog-summernote"></div>';
         } else if (type === 'contact') {
           wrap.innerHTML = '<div class="block-head"><span class="block-type">문의하기</span><div class="block-actions"><span class="block-drag" title="드래그하여 순서 변경">⋮⋮</span><button type="button" class="btn btn-danger btn-remove-block">삭제</button></div></div>' +
             '<label>이메일</label><input type="email" name="contactEmail" placeholder="contact@example.com" value="' + escapeHtml(data.contactEmail || '') + '" />' +
@@ -952,6 +1050,18 @@
             $(snEl).summernote('code', data.content || '');
           }
         }
+        if (type === 'blog' && window.$ && $.fn.summernote) {
+          var blogSnEl = wrap.querySelector('.blog-summernote');
+          if (blogSnEl) {
+            $(blogSnEl).summernote({
+              height: 200,
+              callbacks: {
+                onChange: function() { renderPreview(); }
+              }
+            });
+            $(blogSnEl).summernote('code', data.content || '');
+          }
+        }
 
         if (!noPreview) renderPreview();
         return wrap;
@@ -959,26 +1069,34 @@
 
 
       document.getElementById('btn-save').addEventListener('click', function() {
+        var token = sessionStorage.getItem(AUTH_TOKEN_KEY);
+        if (!token) {
+          showMsg('로그인이 만료되었습니다. 다시 로그인해 주세요.', 'error');
+          return;
+        }
         var data = blocksToLegacy(getBlocksFromDOM());
         var btn = document.getElementById('btn-save');
         btn.disabled = true;
-        fetch(SUPABASE_URL + '/rest/v1/homepage_content', {
+        fetch(FUNCTIONS_URL + '/admin-save', {
           method: 'POST',
           headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
-            'Content-Type': 'application/json',
-            'Prefer': 'resolution=merge-duplicates'
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ id: 1, data: data })
+          body: JSON.stringify({ data: data })
         })
           .then(function(r) {
-            if (!r.ok) return r.text().then(function(t) { throw new Error(t || r.status); });
+            if (!r.ok) return r.json().then(function(d) { throw new Error(d && d.error ? d.error : r.status); }).catch(function() { throw new Error(r.status); });
             try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
             showMsg('저장되었습니다. 모든 방문자에게 반영됩니다.', 'success');
           })
           .catch(function(e) {
-            showMsg('저장 실패: ' + (e.message || '네트워크 오류').slice(0, 60), 'error');
+            if (e.message === 'Invalid or expired token' || String(e.message).indexOf('401') !== -1) {
+              try { sessionStorage.removeItem(AUTH_KEY); sessionStorage.removeItem(AUTH_TOKEN_KEY); } catch (err) {}
+              showMsg('로그인이 만료되었습니다. 페이지를 새로고침한 뒤 다시 로그인해 주세요.', 'error');
+            } else {
+              showMsg('저장 실패: ' + (e.message || '네트워크 오류').slice(0, 60), 'error');
+            }
           })
           .finally(function() { btn.disabled = false; });
       });
@@ -1003,7 +1121,12 @@
         } else {
           blocks.push({ type: 'introText', content: legacy.intro || '' });
         }
-        blocks.push({ type: 'blog', content: legacy.blog || '' });
+        var legBlog = legacy.blog;
+        if (legBlog && typeof legBlog === 'object' && (legBlog.title != null || legBlog.thumbnail != null || legBlog.content != null)) {
+          blocks.push({ type: 'blog', title: legBlog.title || '', thumbnail: legBlog.thumbnail || '', content: legBlog.content || '' });
+        } else {
+          blocks.push({ type: 'blog', title: '', thumbnail: '', content: typeof legBlog === 'string' ? legBlog : '' });
+        }
         blocks.push({ type: 'contact', contactEmail: legacy.contactEmail || '', contactText: legacy.contactText || '' });
         var experts = legacy.experts || [];
         if (experts.length) {
@@ -1030,7 +1153,7 @@
           { type: 'bgColor', color: '', navMode: 'dark', textColor: '' },
           { type: 'mainImage', url: '' },
           { type: 'introText', content: '' },
-          { type: 'blog', content: '' },
+          { type: 'blog', title: '', thumbnail: '', content: '' },
           { type: 'contact', contactEmail: '', contactText: '' },
           { type: 'expert', name: '', role: '', description: '', videoId: '' }
         ];
@@ -1059,6 +1182,21 @@
         });
       }
 
+      function hideAdminLoadingAndRestoreTab() {
+        return new Promise(function(r) { setTimeout(r, 400); }).then(function() {
+          var overlay = document.getElementById('admin-loading-overlay');
+          if (overlay) overlay.classList.add('hidden');
+          var saved = sessionStorage.getItem('admin-tab');
+          if (saved && ['main','intro','blog','youtube','contact'].indexOf(saved) !== -1) {
+            currentTab = saved;
+            document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
+            var tabEl = document.querySelector('.admin-tab[data-tab="' + saved + '"]');
+            if (tabEl) tabEl.classList.add('active');
+            filterByTab();
+          }
+        });
+      }
+
       loadFromSupabase()
         .then(function(data) {
           if (data && (data.siteTitle != null || (data.experts && data.experts.length) || data.introBlocks != null || data.intro != null)) {
@@ -1076,21 +1214,25 @@
         .catch(function() {
           var stored = localStorage.getItem(STORAGE_KEY);
           if (stored) try { setBlocks(legacyToBlocks(JSON.parse(stored))); } catch (e) {}
-          fetch('data.json').then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
+          return fetch('data.json').then(function(r) { return r.ok ? r.json() : null; }).then(function(d) {
             if (d) setBlocks(legacyToBlocks(d));
             else setBlocks([]);
           }).catch(function() { setBlocks([]); });
-        });
+        })
+        .then(hideAdminLoadingAndRestoreTab);
 
       document.querySelectorAll('.admin-tab[data-tab]').forEach(function(tab) {
         tab.addEventListener('click', function(e) {
           if (tab.getAttribute('href') === '#') e.preventDefault();
           currentTab = tab.getAttribute('data-tab');
+          try { sessionStorage.setItem('admin-tab', currentTab); } catch (err) {}
           document.querySelectorAll('.admin-tab').forEach(function(t) { t.classList.remove('active'); });
           tab.classList.add('active');
           filterByTab();
         });
       });
+
+      window.addEventListener('resize', function() { applyPreviewScale(); });
 
       (function() {
         var btnAddIntro = document.getElementById('btn-add-intro');
