@@ -212,6 +212,26 @@
     #preview-area .youtube-wrap { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 6px; background: #000; }
     #preview-area .youtube-wrap iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none; }
     #preview-area .youtube-link { color: var(--accent); font-size: 0.8rem; text-decoration: none; }
+    #preview-area .blog-entry {
+      display: flex; align-items: stretch; margin-top: 1rem; min-height: 200px;
+      border: 1px solid rgba(255,255,255,0.1); border-radius: 12px; overflow: hidden;
+      background: var(--card); cursor: default;
+    }
+    #preview-area .blog-entry-thumbnail {
+      width: 240px; min-width: 240px; min-height: 200px; flex-shrink: 0; overflow: hidden; background: rgba(0,0,0,0.2);
+    }
+    #preview-area .blog-entry-thumbnail img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #preview-area .blog-entry-thumbnail:empty::after {
+      content: ''; display: block; width: 100%; height: 100%; min-height: 200px; background: rgba(255,255,255,0.05);
+    }
+    #preview-area .blog-entry-title-wrap { flex: 1; display: flex; align-items: center; padding: 1rem 1.25rem; }
+    #preview-area .blog-entry-title { font-weight: 700; font-size: 1.15rem; color: var(--text); line-height: 1.4; }
+    #preview-area .blog-preview-body {
+      padding: 1.25rem; overflow: auto; font-size: 0.95rem; line-height: 1.6; color: var(--text-muted);
+      margin-top: 0.75rem; border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; background: var(--card);
+    }
+    #preview-area .blog-preview-body a { color: var(--accent); text-decoration: none; }
+    #preview-area .blog-preview-body a:hover { text-decoration: underline; }
 
     .admin-edit {
       padding: 1.5rem;
@@ -661,12 +681,17 @@
         }).join('');
         if (!introBlocksHtml) introBlocksHtml = '<p class="intro-text" style="color:var(--text-muted)">텍스트 또는 이미지 블록을 추가하세요.</p>';
         var blogData = data.blog && typeof data.blog === 'object' ? data.blog : { title: '', thumbnail: '', content: typeof data.blog === 'string' ? data.blog : '' };
-        var blogTitle = escapeHtml(blogData.title || '');
+        var blogTitle = escapeHtml(blogData.title || '블로그');
         var blogThumb = (blogData.thumbnail || '').trim();
-        var blogPreviewHtml = '<div class="blog-preview-card" style="margin-top:0.75rem;border:1px solid rgba(255,255,255,0.1);border-radius:8px;overflow:hidden;background:var(--card)">' +
-          (blogTitle ? '<div class="blog-preview-title" style="padding:0.5rem 0.75rem;font-weight:600">' + blogTitle + '</div>' : '') +
-          (blogThumb ? '<div class="blog-preview-thumb" style="max-height:120px;overflow:hidden"><img src="' + escapeHtml(blogThumb) + '" alt="" style="width:100%;height:auto;display:block" onerror="this.style.display=\'none\'" /></div>' : '') +
-          '<div class="blog-preview-content" style="padding:0.75rem;font-size:0.9rem;color:var(--text-muted);line-height:1.5">' + (blogData.content || '본문을 입력하세요.') + '</div></div>';
+        var blogContentRaw = blogData.content || '본문을 입력하세요.';
+        var blogEntryThumbHtml = blogThumb
+          ? '<div class="blog-entry-thumbnail"><img src="' + escapeHtml(blogThumb) + '" alt="" onerror="this.parentElement.innerHTML=\'\'" /></div>'
+          : '<div class="blog-entry-thumbnail"></div>';
+        var blogPreviewHtml = '<div class="blog-entry">' +
+          blogEntryThumbHtml +
+          '<div class="blog-entry-title-wrap"><div class="blog-entry-title">' + blogTitle + '</div></div>' +
+          '</div>' +
+          '<div class="blog-preview-body">' + blogContentRaw + '</div>';
         var contactBody = escapeHtml((data.contactText || '')).replace(/\n/g, '<br>') + (data.contactEmail ? ' <a href="mailto:' + escapeHtml(data.contactEmail) + '">' + escapeHtml(data.contactEmail) + '</a>' : '');
         var expertsHtml = '';
         (data.experts || []).forEach(function(ex) {
