@@ -425,6 +425,12 @@
                 <button type="button" class="btn-add-choice" data-type="introImage">이미지</button>
               </div>
             </div>
+            <div class="intro-add-wrap" id="blog-add-wrap" style="display: none;">
+              <button type="button" class="btn btn-secondary" id="btn-add-blog">추가</button>
+            </div>
+            <div class="intro-add-wrap" id="youtube-add-wrap" style="display: none;">
+              <button type="button" class="btn btn-secondary" id="btn-add-youtube">추가</button>
+            </div>
             <button type="button" class="btn btn-primary" id="btn-save">저장</button>
           </div>
         </div>
@@ -516,8 +522,12 @@
         });
         var introAddWrap = document.getElementById('intro-add-wrap');
         var introAddDropdown = document.getElementById('intro-add-dropdown');
+        var blogAddWrap = document.getElementById('blog-add-wrap');
+        var youtubeAddWrap = document.getElementById('youtube-add-wrap');
         if (introAddWrap) introAddWrap.style.display = tab === 'intro' ? '' : 'none';
         if (introAddDropdown) introAddDropdown.style.display = 'none';
+        if (blogAddWrap) blogAddWrap.style.display = tab === 'blog' ? '' : 'none';
+        if (youtubeAddWrap) youtubeAddWrap.style.display = tab === 'youtube' ? '' : 'none';
         renderPreview();
       }
 
@@ -1161,14 +1171,17 @@
           var tab = getTabForType(b.type);
           if (b.type === 'introText' || b.type === 'introImage') {
             addBlock(b.type, b, null, true);
+          } else if (tab === 'blog' || tab === 'youtube') {
+            addBlock(b.type, b, null, true);
           } else {
             blocksContainer.appendChild(createAddBtn(tab));
             addBlock(b.type, b, null, true);
           }
         });
         var lastType = list.length ? list[list.length - 1].type : '';
-        if (list.length && lastType !== 'introText' && lastType !== 'introImage') {
-          blocksContainer.appendChild(createAddBtn(getTabForType(lastType)));
+        var lastTab = getTabForType(lastType);
+        if (list.length && lastType !== 'introText' && lastType !== 'introImage' && lastTab !== 'blog' && lastTab !== 'youtube') {
+          blocksContainer.appendChild(createAddBtn(lastTab));
         }
         renderPreview();
         filterByTab();
@@ -1256,6 +1269,27 @@
             introAddDropdown.style.display = 'none';
           });
           introAddDropdown.addEventListener('click', function(e) { e.stopPropagation(); });
+        }
+        var btnAddBlog = document.getElementById('btn-add-blog');
+        if (btnAddBlog) {
+          btnAddBlog.addEventListener('click', function() {
+            var blogBlocks = blocksContainer.querySelectorAll('.content-block[data-tab="blog"]');
+            var lastBlog = blogBlocks.length ? blogBlocks[blogBlocks.length - 1] : null;
+            var insertBefore = lastBlog ? lastBlog.nextSibling : blocksContainer.querySelector('.content-block[data-tab="contact"]') || blocksContainer.querySelector('.content-block[data-tab="youtube"]') || null;
+            addBlock('blog', {}, insertBefore, true);
+            renderPreview();
+            filterByTab();
+          });
+        }
+        var btnAddYoutube = document.getElementById('btn-add-youtube');
+        if (btnAddYoutube) {
+          btnAddYoutube.addEventListener('click', function() {
+            var expertBlocks = blocksContainer.querySelectorAll('.content-block[data-tab="youtube"]');
+            var lastExpert = expertBlocks.length ? expertBlocks[expertBlocks.length - 1] : null;
+            addBlock('expert', {}, lastExpert ? lastExpert.nextSibling : null, true);
+            renderPreview();
+            filterByTab();
+          });
         }
       })();
     })();
