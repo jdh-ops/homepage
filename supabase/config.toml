@@ -1,0 +1,3 @@
+# 브라우저(localhost)에서 호출 시 OPTIONS 가 401 나면 CORS 오류 발생 → JWT 검증 끔
+[functions.data-import]
+verify_jwt = false
