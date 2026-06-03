@@ -80,7 +80,9 @@ cp config.example.js config.js
 npx serve .
 ```
 
-브라우저에서 `http://localhost:3000/data.html`
+브라우저에서 `http://localhost:3000/` (또는 `/data.html` → `/` 로 이동)
+
+배포: https://db.wegofair.xyz/ (Cloudflare + GitHub Pages, `docs/cloudflare-db-domain.md` 참고)
 
 ## 동작 요약
 
