@@ -1,1 +1,2 @@
-config.js
+# 로컬 전용 비밀(Edge Function import key 등) — 있으면 config.js 보다 나중에 로드
+config.local.js

@@ -66,7 +66,7 @@ supabase.cmd functions deploy data-import --no-verify-jwt
 cp config.example.js config.js
 ```
 
-`config.js`에 다음을 입력:
+`config.js`에 다음을 입력 ( **GitHub Pages 배포 시 `config.js` 를 저장소에 포함** — anon key 는 공개 키이며 RLS 로 보호):
 
 - `supabaseUrl`, `supabaseAnonKey` (대시보드 → Settings → API)
 - `dataImportUrl`: `https://lirxlbbbmqcsbnjnyqkg.supabase.co/functions/v1/data-import`

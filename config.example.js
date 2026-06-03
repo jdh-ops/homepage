@@ -1,4 +1,5 @@
-// 이 파일을 config.js 로 복사한 뒤 anon key 만 채우세요. (config.js 는 git 에 올리지 마세요)
+// config.js 가 없으면: cp config.example.js config.js 후 anon key 입력
+// Supabase anon key 는 브라우저에 노출되는 공개 키입니다(RLS 로 보호). GitHub Pages 배포에 config.js 필요.
 window.APP_CONFIG = {
   supabaseUrl: "https://lirxlbbbmqcsbnjnyqkg.supabase.co",
   supabaseAnonKey: "YOUR_ANON_KEY",

@@ -1897,11 +1897,17 @@
 
   function initClient() {
     if (!cfg?.supabaseUrl || !cfg?.supabaseAnonKey) {
-      setStatus("config.js 에 Supabase URL·anon key 를 설정하세요.", "error");
+      setStatus(
+        "config.js 가 없거나 비어 있습니다. Supabase URL·anon key 를 넣고 GitHub Pages 에도 배포하세요.",
+        "error",
+      );
       return false;
     }
-    if (cfg.supabaseUrl.includes("YOUR_PROJECT")) {
-      setStatus("config.example.js 를 config.js 로 복사하고 실제 값을 넣으세요.", "error");
+    if (
+      cfg.supabaseAnonKey.includes("YOUR_ANON_KEY") ||
+      cfg.supabaseUrl.includes("YOUR_PROJECT")
+    ) {
+      setStatus("config.js 에 실제 Supabase anon key 를 입력하세요.", "error");
       return false;
     }
     supabase = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey);
