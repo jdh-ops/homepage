@@ -65,8 +65,17 @@
     .toolbar-phase {
       display: flex;
       flex-wrap: wrap;
+      align-items: center;
       gap: 0.45rem;
       margin-right: auto;
+    }
+
+    .toolbar-phase-divider {
+      width: 1px;
+      align-self: stretch;
+      min-height: 1.75rem;
+      margin: 0 0.15rem;
+      background: var(--border);
     }
 
     .toolbar .status {
@@ -706,6 +715,25 @@
       margin: 0 0 1rem;
     }
 
+    .ai-review-notice {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin: 0 0 1rem;
+    }
+
+    .ai-review-info {
+      font-size: 0.9rem;
+      color: var(--text);
+      margin: 0;
+      padding-left: 1.15rem;
+      line-height: 1.65;
+    }
+
+    .ai-review-info li + li {
+      margin-top: 0.65rem;
+    }
+
     .author-modal-actions {
       display: flex;
       flex-direction: column;
@@ -1184,6 +1212,8 @@
 
     <div class="toolbar">
       <div class="toolbar-phase">
+        <button type="button" class="btn" id="btnAiReview">AI 검토</button>
+        <span class="toolbar-phase-divider" aria-hidden="true"></span>
         <button type="button" class="btn phase-btn active" id="btnPhaseClassification">분류 단계</button>
         <button type="button" class="btn phase-btn" id="btnPhaseReport">신고 단계</button>
       </div>
@@ -1414,6 +1444,25 @@
       <div class="modal-footer">
         <button type="button" class="btn" id="btnTagModalCancel">취소</button>
         <button type="button" class="btn btn-primary" id="btnTagModalSave">완료</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="aiReviewModal" role="dialog" aria-modal="true" aria-labelledby="aiReviewModalTitle">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="aiReviewModalTitle">AI 검토</h2>
+        <button type="button" class="modal-close" id="btnAiReviewModalClose" aria-label="닫기">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p class="ai-review-notice">데모버전에서는 지원하지 않습니다.</p>
+        <ul class="ai-review-info">
+          <li>기능 설명 : 신규 추가되는 데이터의 특징을 AI가 분석하여 자동으로 분류하여 주는 기능</li>
+          <li>데이터 받아오는 단계에서 자동으로 이루어질 예정</li>
+        </ul>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="btnAiReviewModalOk">확인</button>
       </div>
     </div>
   </div>

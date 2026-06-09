@@ -81,6 +81,10 @@
   const categoryFiltersEl = document.getElementById("categoryFilters");
   const btnPhaseClassification = document.getElementById("btnPhaseClassification");
   const btnPhaseReport = document.getElementById("btnPhaseReport");
+  const btnAiReview = document.getElementById("btnAiReview");
+  const aiReviewModal = document.getElementById("aiReviewModal");
+  const btnAiReviewModalClose = document.getElementById("btnAiReviewModalClose");
+  const btnAiReviewModalOk = document.getElementById("btnAiReviewModalOk");
   const categoryBulkModalTitle = document.getElementById("categoryBulkModalTitle");
   const detailModal = document.getElementById("detailModal");
   const detailModalTitle = document.getElementById("detailModalTitle");
@@ -1383,6 +1387,15 @@
     uploadResultModal?.classList.remove("open");
   }
 
+  function openAiReviewModal() {
+    aiReviewModal?.classList.add("open");
+    btnAiReviewModalOk?.focus();
+  }
+
+  function closeAiReviewModal() {
+    aiReviewModal?.classList.remove("open");
+  }
+
   function openUploadResultModal(result) {
     if (!uploadResultModal || !uploadResultCategoryList) return;
 
@@ -2622,6 +2635,12 @@
   uploadResultModal?.addEventListener("click", (e) => {
     if (e.target === uploadResultModal) closeUploadResultModal();
   });
+  btnAiReview?.addEventListener("click", openAiReviewModal);
+  btnAiReviewModalClose?.addEventListener("click", closeAiReviewModal);
+  btnAiReviewModalOk?.addEventListener("click", closeAiReviewModal);
+  aiReviewModal?.addEventListener("click", (e) => {
+    if (e.target === aiReviewModal) closeAiReviewModal();
+  });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && detailModal.classList.contains("open")) {
       e.preventDefault();
@@ -2632,6 +2651,10 @@
     }
     if (e.key === "Escape" && uploadResultModal?.classList.contains("open")) {
       closeUploadResultModal();
+      return;
+    }
+    if (e.key === "Escape" && aiReviewModal?.classList.contains("open")) {
+      closeAiReviewModal();
       return;
     }
     if (e.key === "Escape" && uploadModal.classList.contains("open")) {
