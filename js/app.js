@@ -186,11 +186,11 @@
   function getDataViewColumns() {
     return [
       { key: "id", label: "ID" },
-      ...COL_KEYS.map((key) => ({ key, label: labelForColumn(key) })),
       { key: "category", label: "분류", meta: true },
       { key: "status", label: "상태", meta: true },
       { key: "tag", label: "태그", meta: true },
       { key: "memo", label: "메모", meta: true },
+      ...COL_KEYS.map((key) => ({ key, label: labelForColumn(key) })),
     ];
   }
 
@@ -1472,6 +1472,7 @@
   function dataViewCellValue(record, col) {
     const meta = getMetaFromRow(record);
     if (col.meta) {
+      if (col.key === "category") return normalizeCategoryValue(meta.category);
       const v = meta[col.key];
       return v == null ? "" : String(v);
     }
