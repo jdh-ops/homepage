@@ -1,0 +1,81 @@
+// 게임 전체에서 쓰는 고정 수치. 밸런스 조정은 여기서.
+
+export const COLORS = [
+  { key: "red", name: "빨강", hex: "#e5484d" },
+  { key: "orange", name: "주황", hex: "#f5893a" },
+  { key: "yellow", name: "노랑", hex: "#f2cc3a" },
+  { key: "green", name: "초록", hex: "#3fb760" },
+  { key: "blue", name: "파랑", hex: "#3e9bfa" },
+  { key: "indigo", name: "남색", hex: "#4146c4" },
+  { key: "violet", name: "보라", hex: "#a160e8" },
+];
+export const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+
+export const UNITS_PER_BOTTLE = 4;
+export const BOTTLES_PER_LABEL = 30;            // 색-요일 조합마다 30병 → 7×7×30 = 1470
+export const SHELF_ROWS = 30;
+export const BREWERY_COUNT = 5;                 // 조제실 5곳, 294병씩
+export const PILE_COLUMNS = 21;                 // 조제실 창고 더미 열 수
+export const PILE_MAX_HEIGHT = 22;
+
+// ---------- 경험치 / 레벨 ----------
+// 선반 한 행(7병)을 오류 없이 채우면 ROW_XP.
+// 전체 210행의 절반(105행)을 채우면 만렙.
+// 레벨업마다 스킬 포인트 1개 → 만렙까지 128포인트 = 스킬 8개 × 16포인트(전부 5레벨).
+export const ROW_XP = 100;
+export const MAX_LEVEL = 129;
+export const MAX_LEVEL_ROWS = 105;
+const TOTAL_XP = ROW_XP * MAX_LEVEL_ROWS;
+const XP_CURVE = 1.4; // 1보다 클수록 뒤로 갈수록 레벨업이 어려워짐
+
+/** 레벨 L에 도달하는 데 필요한 누적 경험치 */
+export function xpForLevel(level) {
+  if (level <= 1) return 0;
+  return Math.round(TOTAL_XP * Math.pow((level - 1) / (MAX_LEVEL - 1), XP_CURVE));
+}
+
+export function levelFromXp(xp) {
+  let lv = 1;
+  while (lv < MAX_LEVEL && xpForLevel(lv + 1) <= xp) lv++;
+  return lv;
+}
+
+// ---------- 구역 해금 ----------
+export const ZONE3_LEVEL = 5;
+export const ZONE4_LEVEL = Math.floor(MAX_LEVEL / 5 / 10) * 10; // 만렙의 1/5, 1의 자리 버림 → 20
+
+// ---------- 스킬 ----------
+// 해금되면 1레벨, 최대 5레벨. 단계별 비용 1 → 3 → 5 → 7 (합 16)
+export const SKILL_COSTS = [1, 3, 5, 7];
+export const SKILL_MAX = 5;
+
+export const SKILLS = [
+  { id: "inventory", name: "인벤토리", desc: "들고 다닐 수 있는 병 수", values: [4, 6, 8, 10, 12], unit: "개", unlock: 1 },
+  { id: "flasks", name: "플라스크", desc: "작업실 1구역 플라스크 수", values: [5, 10, 15, 22, 30], unit: "개", unlock: 1 },
+  { id: "rack", name: "거치대", desc: "작업실 2구역 거치대 수", values: [5, 10, 15, 22, 30], unit: "칸", unlock: 1 },
+  { id: "drumCount", name: "물통 개수", desc: "작업실 3구역 물통 수", values: [2, 3, 4, 5, 6], unit: "개", unlock: ZONE3_LEVEL },
+  { id: "drumSize", name: "물통 크기", desc: "물통 하나에 담기는 칸 수", values: [12, 17, 22, 27, 32], unit: "칸", unlock: ZONE3_LEVEL },
+  { id: "sorterCap", name: "분류기 용량", desc: "분류기 저장 칸 수", values: [12, 24, 36, 48, 60], unit: "칸", unlock: ZONE4_LEVEL },
+  {
+    id: "summon", name: "부름", active: true, unlock: 1,
+    desc: "들고 있는 약병과 같은 라벨 색의 약병을 같은 방 바닥에서 인벤토리로 불러옴",
+    values: [2, 3, 4, 5, 6], unit: "병", cooldown: [20, 15, 12, 8, 5],
+  },
+  {
+    id: "autoShelve", name: "자동 진열", active: true, unlock: 1,
+    desc: "지속시간 동안, 열어 둔 선반에 맞는 완성 약병을 인벤토리에서 꺼내 제자리에 넣음",
+    values: [10, 15, 20, 25, 30], unit: "초", cooldown: [20, 15, 12, 8, 5],
+  },
+];
+
+export const MAX_FLASKS = 30;
+export const MAX_RACK = 30;
+export const MAX_DRUMS = 6;
+export const MAX_INVENTORY = 12;
+
+// ---------- 붓기 시간 (ms) ----------
+export const POUR_BASE_MS = 300;
+export const POUR_PER_UNIT_MS = 110;
+export const INVENTORY_POUR_FACTOR = 2; // 인벤토리 안에서 부을 때는 2배
+
+export const SAVE_KEY = "witch-potion-save-v1";

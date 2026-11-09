@@ -1,0 +1,343 @@
+// 게임 상태와 규칙. 화면과 무관하게 동작한다.
+import {
+  COLORS, DAYS, UNITS_PER_BOTTLE, BOTTLES_PER_LABEL, SHELF_ROWS, BREWERY_COUNT,
+  PILE_COLUMNS, PILE_MAX_HEIGHT, ROW_XP, levelFromXp, SKILLS, SKILL_COSTS, SKILL_MAX,
+  MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, ZONE3_LEVEL, ZONE4_LEVEL, SAVE_KEY,
+} from "./config.js";
+
+const NC = COLORS.length;
+const ND = DAYS.length;
+
+// ---------- 난수 ----------
+function mulberry32(a) {
+  return () => {
+    a |= 0; a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function shuffle(arr, rand) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+// ---------- 새 게임 ----------
+export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) {
+  const rand = mulberry32(seed);
+  const items = [];
+
+  // 라벨: 색 7 × 요일 7 × 30병
+  const labels = [];
+  for (let c = 0; c < NC; c++) for (let d = 0; d < ND; d++) for (let k = 0; k < BOTTLES_PER_LABEL; k++) labels.push([c, d]);
+  shuffle(labels, rand);
+
+  // 내용물: 색마다 (라벨 수 × 4)칸을 모아 섞은 뒤 4칸씩 나눔
+  const units = [];
+  for (let c = 0; c < NC; c++) for (let k = 0; k < ND * BOTTLES_PER_LABEL * UNITS_PER_BOTTLE; k++) units.push(c);
+  shuffle(units, rand);
+
+  labels.forEach(([c, d], i) => {
+    items.push({ id: i, t: "b", c, d, u: units.slice(i * UNITS_PER_BOTTLE, (i + 1) * UNITS_PER_BOTTLE) });
+  });
+
+  // 플라스크 30개 (해금된 수만큼 1구역에 놓임)
+  const flaskSlots = new Array(MAX_FLASKS).fill(null);
+  for (let k = 0; k < MAX_FLASKS; k++) {
+    const id = items.length;
+    items.push({ id, t: "f", u: [] });
+    flaskSlots[k] = id;
+  }
+
+  // 조제실 5곳에 고르게 나누고, 각 방 안에서 무작위 더미 열에 쌓기
+  const bottleIds = shuffle(labels.map((_, i) => i), rand);
+  const per = Math.ceil(bottleIds.length / BREWERY_COUNT);
+  const piles = [];
+  for (let r = 0; r < BREWERY_COUNT; r++) {
+    const cols = Array.from({ length: PILE_COLUMNS }, () => []);
+    const ids = bottleIds.slice(r * per, (r + 1) * per);
+    // 가운데가 더 높게 쌓이는 경향
+    const weight = cols.map((_, i) => 1 + 2 * Math.sin((Math.PI * (i + 0.5)) / PILE_COLUMNS));
+    for (const id of ids) {
+      let pick;
+      do {
+        let x = rand() * weight.reduce((a, b) => a + b, 0);
+        pick = 0;
+        while (x > weight[pick]) x -= weight[pick++];
+      } while (cols[pick].length >= PILE_MAX_HEIGHT);
+      cols[pick].push(id);
+    }
+    piles.push(cols);
+  }
+
+  const skills = {};
+  for (const s of SKILLS) skills[s.id] = 1;
+
+  return {
+    v: 1,
+    seed,
+    items,
+    piles,
+    inv: new Array(MAX_INVENTORY).fill(null),
+    flasks: flaskSlots,
+    rack: new Array(MAX_RACK).fill(null),
+    drums: Array.from({ length: MAX_DRUMS }, () => ({ u: [] })),
+    shelves: Array.from({ length: NC }, () => Array.from({ length: SHELF_ROWS }, () => new Array(ND).fill(null))),
+    lockedRows: Array.from({ length: NC }, () => new Array(SHELF_ROWS).fill(false)),
+    xp: 0,
+    skills,
+    room: "workshop",
+  };
+}
+
+// ---------- 게임 객체 ----------
+export class Game {
+  constructor(state) {
+    this.s = state;
+    this.listeners = new Set();
+  }
+
+  onChange(fn) { this.listeners.add(fn); }
+  changed(info) { for (const fn of this.listeners) fn(info); }
+
+  // ----- 레벨 / 스킬 -----
+  get level() { return levelFromXp(this.s.xp); }
+  spentPoints() {
+    let sum = 0;
+    for (const s of SKILLS) for (let l = 1; l < this.s.skills[s.id]; l++) sum += SKILL_COSTS[l - 1];
+    return sum;
+  }
+  get skillPoints() { return this.level - 1 - this.spentPoints(); }
+  skillDef(id) { return SKILLS.find((s) => s.id === id); }
+  skillUnlocked(id) { return this.level >= this.skillDef(id).unlock; }
+  skillValue(id) { return this.skillDef(id).values[this.s.skills[id] - 1]; }
+  upgradeCost(id) {
+    const lv = this.s.skills[id];
+    return lv >= SKILL_MAX ? null : SKILL_COSTS[lv - 1];
+  }
+  canUpgrade(id) {
+    const cost = this.upgradeCost(id);
+    return cost != null && this.skillUnlocked(id) && this.skillPoints >= cost;
+  }
+  upgrade(id) {
+    if (!this.canUpgrade(id)) return false;
+    this.s.skills[id]++;
+    this.changed({ type: "skill", id });
+    return true;
+  }
+
+  zoneUnlocked(n) {
+    if (n === 3) return this.level >= ZONE3_LEVEL;
+    if (n === 4) return this.level >= ZONE4_LEVEL;
+    return true;
+  }
+
+  get invSize() { return this.skillValue("inventory"); }
+  get flaskCount() { return this.skillValue("flasks"); }
+  get rackCount() { return this.skillValue("rack"); }
+  get drumCount() { return this.zoneUnlocked(3) ? this.skillValue("drumCount") : 0; }
+  get drumCap() { return this.skillValue("drumSize"); }
+
+  // ----- 위치 -----
+  // loc: {a:'inv'|'flask'|'rack'|'drum'|'shelf'|'pile', ...}
+  item(id) { return id == null ? null : this.s.items[id]; }
+
+  slotValid(loc) {
+    switch (loc.a) {
+      case "inv": return loc.i < this.invSize;
+      case "flask": return loc.i < this.flaskCount;
+      case "rack": return loc.i < this.rackCount;
+      case "drum": return loc.i < this.drumCount;
+      case "shelf": return true;
+      default: return false;
+    }
+  }
+
+  itemAt(loc) {
+    switch (loc.a) {
+      case "inv": return this.s.inv[loc.i];
+      case "flask": return this.s.flasks[loc.i];
+      case "rack": return this.s.rack[loc.i];
+      case "shelf": return this.s.shelves[loc.c][loc.r][loc.d];
+      default: return null;
+    }
+  }
+
+  setAt(loc, id) {
+    switch (loc.a) {
+      case "inv": this.s.inv[loc.i] = id; break;
+      case "flask": this.s.flasks[loc.i] = id; break;
+      case "rack": this.s.rack[loc.i] = id; break;
+      case "shelf": this.s.shelves[loc.c][loc.r][loc.d] = id; break;
+      default: throw new Error("bad loc " + loc.a);
+    }
+  }
+
+  /** 붓기 대상이 되는 내용물 {u, cap, drum} */
+  container(loc) {
+    if (loc.a === "drum") return { u: this.s.drums[loc.i].u, cap: this.drumCap, drum: true };
+    if (loc.a === "shelf" || loc.a === "pile") return null;
+    const it = this.item(this.itemAt(loc));
+    return it ? { u: it.u, cap: UNITS_PER_BOTTLE, drum: false } : null;
+  }
+
+  // ----- 붓기 -----
+  pourAmount(src, dst) {
+    if (sameLoc(src, dst)) return 0;
+    if (!this.slotValid(src) || !this.slotValid(dst)) return 0;
+    const S = this.container(src), D = this.container(dst);
+    if (!S || !D || !S.u.length) return 0;
+    const color = S.u[S.u.length - 1];
+    let run = 0;
+    for (let i = S.u.length - 1; i >= 0 && S.u[i] === color; i--) run++;
+    // 물통은 같은 색만
+    if (D.drum && D.u.length && D.u[D.u.length - 1] !== color) return 0;
+    return Math.min(run, D.cap - D.u.length);
+  }
+
+  pour(src, dst) {
+    const n = this.pourAmount(src, dst);
+    if (!n) return 0;
+    const S = this.container(src), D = this.container(dst);
+    for (let k = 0; k < n; k++) D.u.push(S.u.pop());
+    this.changed({ type: "pour", src, dst, n });
+    return n;
+  }
+
+  // ----- 옮기기 -----
+  isComplete(it) {
+    return it && it.u.length === UNITS_PER_BOTTLE && it.u.every((c) => c === it.u[0]);
+  }
+
+  /** 아이템을 그 칸에 놓을 수 있나 (칸이 비어 있다고 가정하지 않음) */
+  accepts(loc, id) {
+    const it = this.item(id);
+    if (!it || !this.slotValid(loc) || this.itemAt(loc) != null) return false;
+    switch (loc.a) {
+      case "inv": return true;
+      case "flask": return it.t === "f";
+      case "rack": return it.t === "b";
+      case "shelf": return it.t === "b" && this.isComplete(it) && !this.s.lockedRows[loc.c][loc.r];
+      default: return false;
+    }
+  }
+
+  canTake(loc) {
+    if (this.itemAt(loc) == null) return false;
+    if (loc.a === "shelf" && this.s.lockedRows[loc.c][loc.r]) return false;
+    return true;
+  }
+
+  move(src, dst) {
+    const id = this.itemAt(src);
+    if (id == null || !this.canTake(src) || !this.accepts(dst, id)) return false;
+    this.setAt(src, null);
+    this.setAt(dst, id);
+    const info = { type: "move", src, dst, id };
+    if (dst.a === "shelf") info.row = this.checkRow(dst.c, dst.r);
+    this.changed(info);
+    return true;
+  }
+
+  firstFree(area, id) {
+    const n = area === "inv" ? this.invSize : area === "flask" ? this.flaskCount : this.rackCount;
+    for (let i = 0; i < n; i++) {
+      const loc = { a: area, i };
+      if (this.accepts(loc, id)) return loc;
+    }
+    return null;
+  }
+
+  // ----- 조제실 더미 -----
+  takeFromPile(room, id) {
+    const cols = this.s.piles[room];
+    const col = cols.findIndex((c) => c.includes(id));
+    if (col < 0) return false;
+    const dst = this.firstFree("inv", id);
+    if (!dst) return false;
+    cols[col].splice(cols[col].indexOf(id), 1);
+    this.setAt(dst, id);
+    this.changed({ type: "pileTake", room, id });
+    return true;
+  }
+
+  dropToPile(src, room, col) {
+    const id = this.itemAt(src);
+    const it = this.item(id);
+    if (!it || it.t !== "b" || !this.canTake(src)) return false;
+    const cols = this.s.piles[room];
+    if (cols[col].length >= PILE_MAX_HEIGHT) {
+      // 가장 낮은 열로
+      col = cols.reduce((best, c, i) => (c.length < cols[best].length ? i : best), 0);
+    }
+    this.setAt(src, null);
+    cols[col].push(id);
+    this.changed({ type: "pileDrop", room, id });
+    return true;
+  }
+
+  pileCount(room) {
+    return this.s.piles[room].reduce((a, c) => a + c.length, 0);
+  }
+
+  // ----- 선반 -----
+  /** 칸이 올바른가: 내용물 색 = 라벨 색 = 선반 색, 라벨 요일 = 열 */
+  cellOk(c, r, d) {
+    const it = this.item(this.s.shelves[c][r][d]);
+    if (!it) return null;
+    return it.u[0] === it.c && it.c === c && it.d === d;
+  }
+
+  checkRow(c, r) {
+    if (this.s.lockedRows[c][r]) return null;
+    for (let d = 0; d < ND; d++) if (!this.cellOk(c, r, d)) return null;
+    const before = this.level;
+    this.s.lockedRows[c][r] = true;
+    this.s.xp += ROW_XP;
+    return { c, r, xp: ROW_XP, levelUp: this.level - before };
+  }
+
+  completedRows() {
+    return this.s.lockedRows.reduce((a, rows) => a + rows.filter(Boolean).length, 0);
+  }
+
+  shelfCount(c) {
+    let n = 0;
+    for (const row of this.s.shelves[c]) for (const id of row) if (id != null) n++;
+    return n;
+  }
+
+  // ----- 방 -----
+  setRoom(room) {
+    this.s.room = room;
+    this.changed({ type: "room", room });
+  }
+
+  // ----- 저장 -----
+  save() {
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); return true; }
+    catch { return false; }
+  }
+
+  static load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) return null;
+      const s = JSON.parse(raw);
+      return s && s.v === 1 ? new Game(s) : null;
+    } catch { return null; }
+  }
+
+  static clearSave() {
+    try { localStorage.removeItem(SAVE_KEY); } catch { /* 무시 */ }
+  }
+}
+
+export function sameLoc(a, b) {
+  if (!a || !b || a.a !== b.a) return false;
+  if (a.a === "shelf") return a.c === b.c && a.r === b.r && a.d === b.d;
+  return a.i === b.i;
+}
