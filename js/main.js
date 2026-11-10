@@ -129,7 +129,7 @@ function renderInfo() {
   const room = game.s.room;
   let help = "";
   if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
-  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제). 물통: 병을 고른 뒤 물통 위쪽 우클릭 = 넣기, 아래 수도꼭지 우클릭 = 빼기. 분류기: 고른 병을 빈 주입기에 클릭해 꽂고 밸브로 내용물을 넣어요. 1초간 밸브를 안 누르면 병의 맨 위 색을 채워 줘요.";
+  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제). 물통: 병을 고른 뒤 물통 우클릭 = 넣기, 수도꼭지 우클릭 = 빼기. 분류기: 고른 병을 빈 주입기에 클릭해 꽂고 밸브로 내용물을 넣어요. 1초간 밸브를 안 누르면 병의 맨 위 색을 채워 줘요.";
   else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 클릭하면 인벤토리로 돌아와요 (완성된 행은 제외).";
   const sel = describeSel();
   $("#info").replaceChildren(
@@ -278,10 +278,10 @@ document.addEventListener("click", (e) => {
 document.addEventListener("contextmenu", (e) => {
   if (!e.target.closest("#view, .inventory")) return;
   e.preventDefault(); // 게임 화면에서는 브라우저 메뉴 대신 붓기
-  const drumIn = e.target.closest("[data-drum-in]");
   const drumOut = e.target.closest("[data-drum-out]");
-  if (drumIn) { drumPour(+drumIn.dataset.drumIn, "in"); return; }
+  const drumIn = e.target.closest("[data-drum-in]");
   if (drumOut) { drumPour(+drumOut.dataset.drumOut, "out"); return; }
+  if (drumIn) { drumPour(+drumIn.dataset.drumIn, "in"); return; }
   const el = e.target.closest("[data-loc]");
   if (el) pourInto(parseLoc(el.dataset.loc));
 });
@@ -307,19 +307,47 @@ function drumPour(i, dir) {
 }
 
 // ---------- 지도 ----------
+// 저택 평면도 (그리드 위치: 열, 행)
+const MAP_ROOMS = [
+  { id: "brewery1", cls: "brewroom", area: "b2" },
+  { id: "brewery2", cls: "brewroom", area: "b3" },
+  { id: "brewery3", cls: "brewroom", area: "b4" },
+  { id: "shelves", area: "sh" },
+  { id: "brewery0", cls: "brewroom", area: "b1" },
+  { id: "workshop", area: "ws" },
+  { id: "brewery4", cls: "brewroom", area: "b5" },
+];
+
+function isRoomLocked(id) { return !!game.s.mapLocks?.[id]; }
+
+function toggleRoomLock(id) {
+  game.s.mapLocks = game.s.mapLocks || {};
+  if (game.s.mapLocks[id]) delete game.s.mapLocks[id];
+  else game.s.mapLocks[id] = true;
+  scheduleSave();
+  renderMap();
+}
+
 function renderMap() {
-  const room = (id, label, sub, cls = "") => {
-    const b = h("button", { class: `map-room ${cls}` + (game.s.room === id ? " here" : "") },
-      h("b", { text: label }), sub ? h("small", { text: sub }) : null);
-    b.addEventListener("click", () => { goRoom(id); closeOverlay("#mapOverlay"); });
-    return b;
-  };
-  const brew = (i) => room(`brewery${i}`, `조제실 ${i + 1}`, `약병 ${game.pileCount(i)}개`, "brewroom");
-  const witch = h("div", { class: "map-room locked" }, h("b", { text: "마녀의 방" }), h("small", { text: "출입 금지" }));
-  $("#mapGrid").replaceChildren(
-    brew(0), brew(1), brew(2),
-    room("workshop", "작업실", "색 맞추기", "wide"), room("shelves", "선반 방", `완성 ${game.completedRows()}행`),
-    brew(3), brew(4), witch);
+  const rooms = MAP_ROOMS.map(({ id, cls = "", area }) => {
+    const locked = isRoomLocked(id);
+    const sub = id.startsWith("brewery") ? `약병 ${game.pileCount(+id.slice(7))}개`
+      : id === "shelves" ? `완성 ${game.completedRows()}행` : "색 맞추기";
+    const go = h("button", { class: "btn small map-go", text: game.s.room === id ? "여기" : "이동" });
+    go.disabled = game.s.room === id;
+    go.addEventListener("click", (e) => { e.stopPropagation(); goRoom(id); closeOverlay("#mapOverlay"); });
+    const el = h("div", {
+      class: `map-room ${cls}` + (game.s.room === id ? " here" : "") + (locked ? " is-locked" : ""),
+      style: `grid-area:${area}`,
+      title: "클릭: 잠금/잠금 해제 (잠그면 A/D 이동 때 건너뜀)",
+    },
+      h("span", { class: "map-lock", text: locked ? "🔒" : "🔓" }),
+      h("b", { text: ROOM_NAMES[id] }), h("small", { text: sub }), go);
+    el.addEventListener("click", () => toggleRoomLock(id));
+    return el;
+  });
+  const door = h("div", { class: "map-door", style: "grid-area:door" }, h("b", { text: "문" }), h("small", { text: "잠김" }));
+  $("#mapGrid").replaceChildren(...rooms, door);
 }
 
 function goRoom(id) {
@@ -529,12 +557,18 @@ function cycleInventory(dir) {
   refresh();
 }
 
-/** A/D: 조제실 1~5 → 작업실 → 선반 방 → 조제실 1 순환 */
+/** A/D: 조제실 1~5 → 작업실 → 선반 방 → 조제실 1 순환 (잠근 방은 건너뜀) */
 const ROOM_ORDER = [...Array.from({ length: BREWERY_COUNT }, (_, i) => `brewery${i}`), "workshop", "shelves"];
 function stepRoom(dir) {
   if (ui.busy) return;
-  const i = ROOM_ORDER.indexOf(game.s.room);
-  goRoom(ROOM_ORDER[(i + dir + ROOM_ORDER.length) % ROOM_ORDER.length]);
+  const n = ROOM_ORDER.length;
+  let i = ROOM_ORDER.indexOf(game.s.room);
+  for (let k = 0; k < n - 1; k++) {
+    i = (i + dir + n) % n;
+    if (!isRoomLocked(ROOM_ORDER[i])) break;
+  }
+  if (ROOM_ORDER[i] === game.s.room || isRoomLocked(ROOM_ORDER[i])) { toast("이동할 수 있는 방이 없어요. 지도(M)에서 잠금을 풀어 주세요."); return; }
+  goRoom(ROOM_ORDER[i]);
   if ($("#mapOverlay").classList.contains("show")) renderMap();
 }
 
