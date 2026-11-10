@@ -661,7 +661,7 @@ b { font-weight: 700; }
 
 /* ---------- 계정 / 로그인 ---------- */
 .menu-panel { width: 400px; }
-.account-info { display: grid; grid-template-columns: 70px 1fr; gap: 8px 12px; margin: 0 0 8px; }
+.account-info { display: grid; grid-template-columns: 84px 1fr; gap: 8px 12px; margin: 0 0 8px; }
 .account-info dt { color: var(--muted); }
 .account-info dd { margin: 0; }
 .pw-row { display: flex; align-items: center; gap: 10px; }
@@ -689,3 +689,14 @@ b { font-weight: 700; }
 .login-panel:not(.signup) .signup-only { display: none; }
 .login-error { min-height: 18px; margin: 0; color: #ff8a95; font-size: 13px; }
 #loginOverlay { background: rgba(6, 4, 14, 0.85); }
+
+.warn-note {
+  margin: 4px 0 0;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(255, 170, 60, 0.12);
+  border: 1px solid rgba(255, 170, 60, 0.35);
+  color: #ffcf8a;
+  font-size: 12.5px;
+  line-height: 1.5;
+}

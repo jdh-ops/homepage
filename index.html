@@ -62,13 +62,12 @@
     <div class="panel menu-panel">
       <div class="panel-head"><h2>계정</h2><button class="btn icon" data-close>✕</button></div>
       <dl class="account-info">
-        <dt>닉네임</dt><dd id="accNick">-</dd>
+        <dt>아이디</dt><dd id="accNick">-</dd>
         <dt>가입일</dt><dd id="accCreated">-</dd>
-        <dt>비밀번호</dt>
-        <dd class="pw-row"><span id="accPw">••••••</span> <button class="btn small" id="btnPwToggle">보이기</button></dd>
+        <dt>마지막 접속</dt><dd id="accLastSeen">-</dd>
         <dt>저장</dt><dd id="accSaved" class="muted">-</dd>
       </dl>
-      <p class="muted small-note" id="accPwNote">비밀번호는 이 기기에서 로그인할 때 기억해 둔 것만 보여요.</p>
+      <p class="warn-note" id="accWarn"></p>
       <div class="menu-actions">
         <button class="btn" id="btnLogout">로그아웃</button>
         <button class="btn danger" id="btnNewGame">새 게임 시작 (리셋)</button>
@@ -99,6 +98,7 @@
       </label>
       <p class="muted small-note signup-only" id="loginRule"></p>
       <p class="login-error" id="loginError"></p>
+      <p class="warn-note" id="loginWarn"></p>
       <button type="submit" class="btn primary" id="btnLoginSubmit">로그인</button>
     </form>
   </div>
@@ -119,7 +119,6 @@
   </div>
 
   <script src="js/vendor/matter.min.js"></script>
-  <script src="js/vendor/supabase.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>

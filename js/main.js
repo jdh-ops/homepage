@@ -510,7 +510,7 @@ setInterval(() => {
 // ---------- 오버레이 ----------
 function openOverlay(sel) {
   if (sel === "#mapOverlay") renderMap();
-  if (sel === "#menuOverlay") { $("#btnPwToggle").dataset.shown = "0"; renderAccount(); }
+  if (sel === "#menuOverlay") renderAccount();
   if (sel === "#skillOverlay") renderSkills();
   $(sel).classList.add("show");
 }
@@ -600,7 +600,6 @@ window.addEventListener("resize", () => breweryView.resize());
 // 이 기기에 바로 저장하고(0.4초 뒤), 서버에는 최대 20초에 한 번 + 방 이동·창 닫기 때 저장.
 const CLOUD_EVERY_MS = 20000;
 const localKey = () => `witch-potion-save:${account.id}`;
-const pwKey = () => `witch-potion-pw:${account.id}`;
 let saveTimer = 0, cloudTimer = 0, lastCloud = 0, cloudDirty = false, lastSavedAt = 0, cloudError = false;
 
 function readLocal() {
@@ -623,9 +622,11 @@ async function flushCloud() {
   try {
     await cloud.writeSave(account, rec.data, rec.updatedAt);
     lastSavedAt = rec.updatedAt; cloudError = false;
+    account.lastSeen = new Date().toISOString(); // 서버가 마지막 접속 시각도 갱신함
   } catch (e) {
     cloudDirty = true; cloudError = true; // 다음에 다시 시도
     console.warn("서버 저장 실패", e);
+    if (e.code === "invalid_session") { toast(e.message); showLogin(); return; }
   }
   renderAccount();
 }
@@ -726,7 +727,6 @@ $("#loginForm").addEventListener("submit", async (e) => {
   btn.disabled = true; err("");
   try {
     const acc = loginMode === "signup" ? await cloud.signUp(nick, pw) : await cloud.signIn(nick, pw);
-    try { localStorage.setItem(`witch-potion-pw:${acc.id}`, pw); } catch { /* 무시 */ }
     await enterAccount(acc);
   } catch (ex) {
     err(ex.message);
@@ -735,24 +735,20 @@ $("#loginForm").addEventListener("submit", async (e) => {
   }
 });
 
+const WARN_TEXT = `⚠ 마지막 접속 후 ${cloud.INACTIVE_DAYS}일 동안 접속하지 않으면 계정과 진행 상황이 자동으로 삭제돼요.`;
+$("#loginWarn").textContent = WARN_TEXT;
+
 function renderAccount() {
   if (!account) return;
+  const fmt = (t) => new Date(t).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" });
   $("#accNick").textContent = account.nickname;
   $("#accCreated").textContent = account.createdAt ? new Date(account.createdAt).toLocaleDateString("ko-KR") : "-";
-  let pw = null;
-  try { pw = localStorage.getItem(pwKey()); } catch { /* 무시 */ }
-  const shown = $("#btnPwToggle").dataset.shown === "1";
-  $("#accPw").textContent = pw == null ? "(이 기기에 기억된 비밀번호 없음)" : shown ? pw : "•".repeat(Math.max(6, pw.length));
-  $("#btnPwToggle").hidden = pw == null;
-  $("#btnPwToggle").textContent = shown ? "숨기기" : "보이기";
+  $("#accLastSeen").textContent = account.lastSeen ? fmt(account.lastSeen) : "-";
   $("#accSaved").textContent = cloudError ? "서버 저장 실패 (이 기기에는 저장됨, 다시 시도 중)"
     : lastSavedAt ? `서버에 저장됨 · ${new Date(lastSavedAt).toLocaleTimeString("ko-KR")}` : "-";
+  const until = account.lastSeen ? Date.parse(account.lastSeen) + cloud.INACTIVE_DAYS * 86400000 : null;
+  $("#accWarn").textContent = WARN_TEXT + (until ? ` 지금 접속을 끊으면 ${fmt(until)} 이후 삭제돼요.` : "");
 }
-$("#btnPwToggle").addEventListener("click", () => {
-  const b = $("#btnPwToggle");
-  b.dataset.shown = b.dataset.shown === "1" ? "0" : "1";
-  renderAccount();
-});
 
 $("#btnLogout").addEventListener("click", async () => {
   await flushCloud();
@@ -766,7 +762,7 @@ $("#btnDeleteAccount").addEventListener("click", async () => {
   if (typed.trim() !== account.nickname) { toast("닉네임이 달라서 삭제하지 않았어요."); return; }
   try {
     await cloud.deleteAccount();
-    try { localStorage.removeItem(localKey()); localStorage.removeItem(pwKey()); } catch { /* 무시 */ }
+    try { localStorage.removeItem(localKey()); } catch { /* 무시 */ }
     clearTimeout(cloudTimer); cloudTimer = 0; cloudDirty = false;
     showLogin();
     toast("계정을 삭제했어요.");
@@ -809,6 +805,8 @@ function bindGame() {
 function showIntro() { openOverlay("#introOverlay"); }
 
 // ---------- 시작 ----------
+// 예전 버전이 이 기기에 기억해 둔 비밀번호 지우기
+try { Object.keys(localStorage).filter((k) => k.startsWith("witch-potion-pw:")).forEach((k) => localStorage.removeItem(k)); } catch { /* 무시 */ }
 bindGame();
 refresh();
 (async () => {

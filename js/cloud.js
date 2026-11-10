@@ -1,113 +1,114 @@
-// 계정(닉네임 + 비밀번호)과 서버 세이브. Supabase 사용.
-// anon key 는 브라우저에 공개되는 키예요. 데이터는 RLS 로 본인 것만 읽고 쓸 수 있어요 (supabase/game_saves.sql).
+// 게임 계정(닉네임 + 비밀번호)과 서버 세이브.
+// Supabase 데이터베이스 함수(supabase/game.sql)를 직접 부름. Supabase Auth 는 쓰지 않음.
+// anon key 는 브라우저에 공개되는 키예요. 표는 직접 못 읽고, 함수로만 본인 데이터에 접근해요.
 const SUPABASE_URL = "https://lirxlbbbmqcsbnjnyqkg.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxpcnhsYmJibXFjc2Juam55cWtnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2MDk2MTIsImV4cCI6MjA4MjE4NTYxMn0.06V04-rJsbChPIGUJQemxZH6Ss16vArJRKGyQejf_JE";
-// 닉네임을 Supabase 로그인용 가짜 이메일로 바꿀 때 쓰는 도메인 (메일은 보내지 않음)
-const EMAIL_DOMAIN = "players.wegofair.xyz";
+const TOKEN_KEY = "witch-potion-token";
 
 export const NICK_RULE = "닉네임은 2~10자, 한글·영문·숫자·_ 만 쓸 수 있어요.";
 export const PW_MIN = 6;
+export const INACTIVE_DAYS = 7; // 마지막 접속 후 이만큼 지나면 서버가 계정 삭제
 
 export function checkNickname(nick) {
   return /^[0-9A-Za-z가-힣_]{2,10}$/.test(nick);
 }
 
-/** 닉네임 → 로그인용 이메일 (영문 대소문자 구분 없음, 한글은 UTF-8 16진수) */
-function nickToEmail(nick) {
-  const bytes = new TextEncoder().encode(nick.trim().toLowerCase());
-  return "p" + [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("") + "@" + EMAIL_DOMAIN;
-}
-
-let sb = null;
-function client() {
-  if (!sb) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-    auth: { persistSession: true, autoRefreshToken: true, storageKey: "witch-potion-auth" },
-  });
-  return sb;
-}
-
 const mock = () => window.__cloudMock; // 테스트용 가짜 서버
 
-function toAccount(user) {
-  return user ? { id: user.id, nickname: user.user_metadata?.nickname || "?", createdAt: user.created_at } : null;
+const MESSAGES = {
+  nickname_taken: "이미 있는 닉네임이에요.",
+  invalid_login: "닉네임 또는 비밀번호가 틀려요.",
+  bad_nickname: NICK_RULE,
+  bad_password: `비밀번호는 ${PW_MIN}자 이상이어야 해요.`,
+  invalid_session: "로그인이 만료됐어요. 다시 로그인해 주세요.",
+  save_too_large: "세이브가 너무 커요.",
+};
+
+function getToken() { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } }
+function setToken(t) { try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch { /* 무시 */ } }
+
+async function rpc(fn, args, opts = {}) {
+  let res;
+  try {
+    res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+      method: "POST",
+      keepalive: !!opts.keepalive,
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(args),
+    });
+  } catch {
+    throw Object.assign(new Error("서버에 연결할 수 없어요. 인터넷 연결을 확인해 주세요."), { code: "network" });
+  }
+  const text = await res.text();
+  const body = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    const code = Object.keys(MESSAGES).find((k) => (body?.message || "").includes(k)) || "unknown";
+    throw Object.assign(new Error(MESSAGES[code] || "문제가 생겼어요: " + (body?.message || res.status)), { code });
+  }
+  return body;
 }
 
-function friendly(error) {
-  const m = (error?.message || "").toLowerCase();
-  if (m.includes("already registered") || m.includes("already been registered")) return "이미 있는 닉네임이에요.";
-  if (m.includes("invalid login credentials")) return "닉네임 또는 비밀번호가 틀려요.";
-  if (m.includes("password")) return `비밀번호는 ${PW_MIN}자 이상이어야 해요.`;
-  if (m.includes("fetch") || m.includes("network")) return "서버에 연결할 수 없어요. 인터넷 연결을 확인해 주세요.";
-  return "문제가 생겼어요: " + (error?.message || "알 수 없는 오류");
-}
+const toAccount = (a) => a && { id: a.id, nickname: a.nickname, createdAt: a.created_at, lastSeen: a.last_seen };
 
+/** 저장된 로그인으로 계정 정보. 만료됐으면 null */
 export async function getAccount() {
   if (mock()) return mock().getAccount();
-  const { data } = await client().auth.getSession();
-  return toAccount(data.session?.user);
+  const token = getToken();
+  if (!token) return null;
+  try {
+    return toAccount(await rpc("game_session", { p_token: token }));
+  } catch (e) {
+    if (e.code === "invalid_session") { setToken(null); return null; }
+    throw e;
+  }
 }
 
 export async function signUp(nick, password) {
   if (mock()) return mock().signUp(nick, password);
-  const { data, error } = await client().auth.signUp({
-    email: nickToEmail(nick), password, options: { data: { nickname: nick.trim() } },
-  });
-  if (error) throw new Error(friendly(error));
-  // 이메일 확인이 켜져 있으면 세션이 없음 → 관리자 설정 필요
-  if (!data.session) throw new Error("가입은 됐지만 바로 로그인되지 않았어요. (관리자: Supabase 이메일 확인 끄기 필요)");
-  return toAccount(data.user);
+  const r = await rpc("game_sign_up", { p_nick: nick, p_pw: password });
+  setToken(r.token);
+  return toAccount(r.account);
 }
 
 export async function signIn(nick, password) {
   if (mock()) return mock().signIn(nick, password);
-  const { data, error } = await client().auth.signInWithPassword({ email: nickToEmail(nick), password });
-  if (error) throw new Error(friendly(error));
-  return toAccount(data.user);
+  const r = await rpc("game_sign_in", { p_nick: nick, p_pw: password });
+  setToken(r.token);
+  return toAccount(r.account);
 }
 
 export async function signOut() {
   if (mock()) return mock().signOut();
-  await client().auth.signOut();
+  const token = getToken();
+  setToken(null);
+  if (token) await rpc("game_sign_out", { p_token: token }).catch(() => {});
 }
 
 /** 서버 세이브 { data, updatedAt } 또는 null */
 export async function loadSave() {
   if (mock()) return mock().loadSave();
-  const { data, error } = await client().from("game_saves").select("data, updated_at").maybeSingle();
-  if (error) throw new Error(friendly(error));
-  return data ? { data: data.data, updatedAt: Date.parse(data.updated_at) } : null;
+  const r = await rpc("game_load", { p_token: getToken() });
+  return r ? { data: r.data, updatedAt: Date.parse(r.updated_at) } : null;
 }
 
 export async function writeSave(account, data, updatedAt) {
   if (mock()) return mock().writeSave(account, data, updatedAt);
-  const { error } = await client().from("game_saves").upsert({
-    user_id: account.id, nickname: account.nickname, data, updated_at: new Date(updatedAt).toISOString(),
-  });
-  if (error) throw new Error(friendly(error));
+  await rpc("game_save", { p_token: getToken(), p_data: data, p_updated_at: new Date(updatedAt).toISOString() });
 }
 
 /** 페이지를 닫을 때: 응답을 기다리지 않고 보냄 */
-export async function writeSaveOnExit(account, data, updatedAt) {
+export function writeSaveOnExit(account, data, updatedAt) {
   if (mock()) return mock().writeSave(account, data, updatedAt);
-  const { data: s } = await client().auth.getSession();
-  const token = s.session?.access_token;
-  if (!token) return;
-  fetch(`${SUPABASE_URL}/rest/v1/game_saves?on_conflict=user_id`, {
-    method: "POST",
-    keepalive: true,
-    headers: {
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-      Prefer: "resolution=merge-duplicates,return=minimal",
-    },
-    body: JSON.stringify({ user_id: account.id, nickname: account.nickname, data, updated_at: new Date(updatedAt).toISOString() }),
-  }).catch(() => {});
+  rpc("game_save", { p_token: getToken(), p_data: data, p_updated_at: new Date(updatedAt).toISOString() }, { keepalive: true })
+    .catch(() => {});
 }
 
 export async function deleteAccount() {
   if (mock()) return mock().deleteAccount();
-  const { error } = await client().rpc("delete_my_account");
-  if (error) throw new Error(friendly(error));
-  await client().auth.signOut();
+  await rpc("game_delete_account", { p_token: getToken() });
+  setToken(null);
 }
