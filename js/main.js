@@ -4,7 +4,7 @@ import {
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
 import { $, h, vial, locKey, parseLoc, toast, delay } from "./ui/common.js";
-import { createBreweryView } from "./ui/brewery.js";
+import { createBreweryView, PILE_TUNE } from "./ui/brewery.js";
 import { renderWorkshop } from "./ui/workshop.js";
 import { renderShelves } from "./ui/shelves.js";
 
@@ -215,7 +215,19 @@ function discardSelected() {
   if (ui.sel?.a !== "inv" || game.itemAt(ui.sel) == null) { toast("인벤토리에서 버릴 병을 먼저 선택하세요 (Q/E)."); return; }
   const room = game.s.room;
   if (!room.startsWith("brewery") && room !== "workshop") { toast("버리기는 조제실과 작업실에서만 할 수 있어요."); return; }
+  const i = ui.sel.i;
   quickMove(ui.sel);
+  // 버렸으면 다음 물약 자동 선택 (마지막 다음은 처음으로)
+  if (game.itemAt({ a: "inv", i }) == null) {
+    const n = game.invSize;
+    let next = null;
+    for (let k = 1; k <= n; k++) {
+      const j = (i + k) % n;
+      if (game.s.inv[j] != null) { next = j; break; }
+    }
+    ui.sel = next == null ? null : { a: "inv", i: next };
+    refresh();
+  }
 }
 
 function quickMove(loc) {
@@ -508,3 +520,5 @@ try {
 
 // 디버그/테스트용
 window.__game = () => game;
+window.__pileTune = PILE_TUNE;
+window.__pileRedraw = () => breweryView.update();

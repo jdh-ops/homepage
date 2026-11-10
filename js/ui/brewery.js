@@ -9,6 +9,10 @@ function jitter(id, salt) {
   return (((x ^ (x >>> 16)) >>> 0) % 1000) / 1000 - 0.5; // -0.5 ~ 0.5
 }
 
+// 흐트러짐 정도 (x: 열 너비 대비 좌우, y: 층 간격 대비 위아래, rot: 최대 기울기°)
+// 병마다 절반 이상 보이는 범위에서 조정한 값
+export const PILE_TUNE = { x: 0.5, y: 0.2, rot: 18 };
+
 export function createBreweryView(ctx) {
   let roomIdx = -1;
   let root, pileEl, countEl;
@@ -67,12 +71,14 @@ export function createBreweryView(ctx) {
           pileEl.append(el);
           els.set(id, el);
         }
-        const x = ci * colW + (colW - bw) / 2 + jitter(id, 1) * colW * 0.24;
-        const y = k * step;
+        // 흐트러짐: 좌우로 밀리고, 조금씩 높낮이가 다르고, 기울어짐
+        const T = PILE_TUNE;
+        const x = ci * colW + (colW - bw) / 2 + jitter(id, 1) * colW * T.x;
+        const y = k * step + (k ? (jitter(id, 2) + 0.5) * step * T.y : 0);
         el.style.left = x + "px";
         el.style.bottom = y + "px";
-        el.style.zIndex = k * 3 + ((ci * 7) % 3);
-        el.style.setProperty("--rot", jitter(id, 3) * 10 + "deg");
+        el.style.zIndex = Math.round(y); // 위에 쌓인(높은) 병이 앞에
+        el.style.setProperty("--rot", jitter(id, 3) * 2 * T.rot + "deg");
         el.classList.toggle("top", k === col.length - 1);
       });
     });
