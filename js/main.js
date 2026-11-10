@@ -1,6 +1,6 @@
 import {
   COLORS, DAYS, SKILLS, SKILL_MAX, MAX_LEVEL, xpForLevel, ZONE3_LEVEL, ZONE4_LEVEL,
-  POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
+  SHELF_ROWS, POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
 import { $, h, vial, locKey, parseLoc, toast, delay } from "./ui/common.js";
@@ -72,7 +72,7 @@ function renderHud() {
   $("#hudLevel").textContent = lv >= MAX_LEVEL ? `Lv ${lv} (MAX)` : `Lv ${lv}`;
   $("#hudXpFill").style.width = lv >= MAX_LEVEL ? "100%" : `${((game.s.xp - a) / (b - a)) * 100}%`;
   $("#hudXpText").textContent = lv >= MAX_LEVEL ? `${game.s.xp} XP` : `${game.s.xp - a} / ${b - a} XP`;
-  $("#hudRows").textContent = game.completedRows();
+  $("#hudRows").textContent = `${game.completedRows()}/${SHELF_ROWS * COLORS.length}`;
   const pts = game.skillPoints;
   const badge = $("#skillBadge");
   badge.textContent = pts;

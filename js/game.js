@@ -96,8 +96,9 @@ export class Game {
       for (const id of ["drum", "sorterCap", "summon", "autoShelve"]) this.s.skills[id] = 0;
     }
     for (const s of SKILLS) if (this.s.skills[s.id] == null) this.s.skills[s.id] = s.start ?? 1;
-    // 임시 테스트: 시작 레벨 끌어올리기
-    this.s.xp = Math.max(this.s.xp, xpForLevel(TEST_START_LEVEL));
+    // 경험치 = 완성한 행 × ROW_XP (경험치 단위가 바뀌어도 맞도록 다시 계산)
+    // (임시 테스트: 시작 레벨만큼의 경험치를 더해 줌. TEST_START_LEVEL = 1이면 0)
+    this.s.xp = this.completedRows() * ROW_XP + xpForLevel(TEST_START_LEVEL);
     this.compactInventory();
     if (!this.s.sorter) this.s.sorter = { inj: new Array(SORTER_INJECTORS).fill(null), store: [] };
     // 잠긴 주입기에 꽂혀 있던 병은 인벤토리나 거치대/플라스크 자리로
