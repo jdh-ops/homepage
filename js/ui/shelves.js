@@ -1,4 +1,4 @@
-// 선반 방: 7개 선반 한눈에 보기 + 선반 하나 크게 보기
+// 선반: 7개 선반 한눈에 보기 + 선반 하나 크게 보기
 import { COLORS, DAYS, SHELF_ROWS } from "../config.js";
 import { h, vial, locKey } from "./common.js";
 
@@ -22,7 +22,7 @@ function overview(ctx) {
     return card;
   });
   return h("div", { class: "room shelves" },
-    h("div", { class: "room-caption" }, h("b", { text: "선반 방" }), ` · 완성한 행 ${g.completedRows()}/${SHELF_ROWS * COLORS.length}`),
+    h("div", { class: "room-caption" }, h("b", { text: "선반" }), ` · 완성한 행 ${g.completedRows()}/${SHELF_ROWS * COLORS.length}`),
     h("div", { class: "shelf-cards" }, cards));
 }
 

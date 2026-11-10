@@ -84,7 +84,15 @@ b { font-weight: 700; }
   border-top: 1px solid var(--line);
 }
 .info { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.info-sel { font-size: 15px; }
+.sel-label {
+  /* 선택한 병 라벨: 인벤토리 바로 왼쪽, 오른쪽 정렬 */
+  align-self: flex-start;
+  margin-top: 8px;
+  min-width: 120px;
+  text-align: right;
+  font-size: 15px;
+  white-space: nowrap;
+}
 .info-help { color: var(--text); opacity: 0.85; line-height: 1.5; }
 .inventory {
   background: var(--panel);

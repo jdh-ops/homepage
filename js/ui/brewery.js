@@ -214,8 +214,7 @@ export function createBreweryView(ctx) {
           h("div", { class: "brew" }, h("i"), h("i"), h("i"), h("i")),
           h("div", { class: "pot" }),
           h("div", { class: "fire" })),
-        h("div", { class: "room-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl,
-          h("div", { class: "muted small", text: "휠로 아래까지 내려 볼 수 있어요" }))),
+        h("div", { class: "room-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl)),
       store);
 
     world.addEventListener("click", (e) => {

@@ -20,7 +20,7 @@ const ui = {
 };
 
 const ROOM_NAMES = {
-  shelves: "선반 방",
+  shelves: "선반",
   workshop: "작업실",
   ...Object.fromEntries(Array.from({ length: BREWERY_COUNT }, (_, i) => [`brewery${i}`, `조제실 ${i + 1}`])),
 };
@@ -113,29 +113,21 @@ function renderRoom() {
   if (sc) sc.scrollTop = scroll;
 }
 
+/** 선택한 병의 라벨만 (예: 주황 - 수) */
 function describeSel() {
   if (!ui.sel) return null;
-  if (ui.sel.a === "drum") {
-    const d = game.s.drums[ui.sel.i];
-    return `물통 ${ui.sel.i + 1} (${d.u.length}칸${d.u.length ? ", " + COLORS[d.u[0]].name : ""})`;
-  }
+  if (ui.sel.a === "drum") return `물통 ${ui.sel.i + 1}`;
   const it = game.item(game.itemAt(ui.sel));
   if (!it) return null;
-  const inside = it.u.length ? it.u.map((c) => COLORS[c].name).join("·") : "비어 있음";
-  return it.t === "f" ? `플라스크 [${inside}]` : `${COLORS[it.c].name}-${DAYS[it.d]} 약병 [${inside}]`;
+  return it.t === "f" ? "플라스크" : `${COLORS[it.c].name} - ${DAYS[it.d]}`;
 }
 
 function renderInfo() {
-  const room = game.s.room;
-  let help = "";
-  if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
-  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제). 물통: 병을 고른 뒤 물통 우클릭 = 넣기, 수도꼭지 우클릭 = 빼기. 분류기: 고른 병을 빈 주입기에 클릭해 꽂고 밸브로 내용물을 넣어요. 1초간 밸브를 안 누르면 병의 맨 위 색을 채워 줘요.";
-  else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 클릭하면 인벤토리로 돌아와요 (완성된 행은 제외).";
-  const sel = describeSel();
   $("#info").replaceChildren(
-    h("div", { class: "info-sel" }, sel ? h("span", {}, "선택: ", h("b", { text: sel })) : h("span", { class: "muted", text: "선택한 병 없음" })),
-    h("div", { class: "info-help", text: help }),
-    h("div", { class: "info-keys muted", text: "Q/E: 인벤토리 선택 · R: 버리기 · 우클릭: 붓기 · A/D: 이전/다음 방 · 1/2: 스킬 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
+    h("div", { class: "info-help", text: "클릭: 줍기/넣기 · 우클릭: 붓기 · R: 버리기 · Q/E: 인벤토리 이전/다음" }),
+    h("div", { class: "info-keys muted", text: "A/D: 이전/다음 방 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
+  const sel = describeSel();
+  $("#selLabel").replaceChildren(sel ? h("b", { text: sel }) : h("span", { class: "muted", text: "선택 없음" }));
 }
 
 // ---------- 조작 ----------
@@ -186,7 +178,7 @@ function onLoc(loc) {
     quickMove(loc);
     return;
   }
-  // 선반 방: 선반의 약병을 클릭하면 인벤토리로
+  // 선반: 선반의 약병을 클릭하면 인벤토리로
   if (loc.a === "shelf" && locHas(loc)) {
     quickMove(loc);
     return;
@@ -559,7 +551,7 @@ function cycleInventory(dir) {
   refresh();
 }
 
-/** A/D: 조제실 1~5 → 작업실 → 선반 방 → 조제실 1 순환 (잠근 방은 건너뜀) */
+/** A/D: 조제실 1~5 → 작업실 → 선반 → 조제실 1 순환 (잠근 방은 건너뜀) */
 const ROOM_ORDER = [...Array.from({ length: BREWERY_COUNT }, (_, i) => `brewery${i}`), "workshop", "shelves"];
 function stepRoom(dir) {
   if (ui.busy) return;
