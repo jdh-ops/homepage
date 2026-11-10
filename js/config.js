@@ -24,7 +24,7 @@ export const BOTTLE_H = 46;
 
 // ---------- 경험치 / 레벨 ----------
 // 선반 한 행(7병)을 오류 없이 채우면 경험치 ROW_XP(=1). 즉 경험치 = 완성한 행 수.
-// 116행을 채우면 만렙 (레벨업 116번과 같은 수).
+// 행 1개 = 1레벨 업. 116행을 채우면 만렙.
 // 레벨업마다 스킬 포인트 1개. 만렙까지 받는 포인트로 모든 스킬을 5레벨까지 찍을 수 있게:
 //   처음부터 1레벨인 스킬 3개 × 16포인트 + 0레벨에서 시작하는 스킬 4개 × 17포인트 = 116 → 만렙 117
 //   (스킬 구성이 바뀌면 아래 SKILLS 뒤의 검사가 콘솔에 알려 줌)
@@ -32,7 +32,7 @@ export const ROW_XP = 1;
 export const MAX_LEVEL = 117;
 export const MAX_LEVEL_ROWS = 116;
 const TOTAL_XP = ROW_XP * MAX_LEVEL_ROWS;
-const XP_CURVE = 1.4; // 1보다 클수록 뒤로 갈수록 레벨업이 어려워짐
+const XP_CURVE = 1; // 1 = 한 행마다 1레벨. 1보다 크면 뒤로 갈수록 레벨업이 어려워짐
 
 /** 레벨 L에 도달하는 데 필요한 누적 경험치 */
 export function xpForLevel(level) {
