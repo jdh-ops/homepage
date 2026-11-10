@@ -48,11 +48,11 @@ export function levelFromXp(xp) {
 
 // ---------- 테스트용 ----------
 // 임시: 이 레벨보다 낮으면 이 레벨로 올려서 시작 (기존 세이브 포함). 정식 버전에서는 1로.
-export const TEST_START_LEVEL = 20;
+export const TEST_START_LEVEL = 30;
 
 // ---------- 구역 해금 ----------
-export const ZONE3_LEVEL = 5;
-export const ZONE4_LEVEL = Math.floor(MAX_LEVEL / 5 / 10) * 10; // 만렙의 1/5(23.4), 1의 자리 버림 → 20
+export const ZONE3_LEVEL = 10;
+export const ZONE4_LEVEL = 30;
 
 // ---------- 스킬 ----------
 // 최대 5레벨. SKILL_COSTS[지금 레벨] = 다음 레벨로 올리는 비용
