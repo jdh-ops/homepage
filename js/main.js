@@ -193,7 +193,7 @@ function onLoc(loc) {
   if (!locHas(loc)) {
     if (sel.a === "drum") { toast("물통은 옮길 수 없어요. 빈 병을 골라 물통에서 따라 주세요."); return; }
     if (!game.move(sel, loc)) { toast(moveFailReason(sel, loc)); return; }
-    if (sel.a !== "inv") ui.sel = null; // 인벤토리에서 꺼냈으면 같은 자리(=당겨진 다음 물약)가 선택된 채로
+    if (sel.a !== "inv" && loc.a !== "inv") ui.sel = null; // 인벤토리에서 꺼냈으면 같은 자리(=당겨진 다음 물약), 인벤토리로 넣었으면 그 병이 선택된 채로
     refresh();
     return;
   }
@@ -585,6 +585,10 @@ function bindGame() {
       const i = ui.sel.i;
       const ni = info.invMap[i] ?? (i < count ? i : count ? 0 : null); // 빠진 칸이면 그 자리(=다음 물약)
       ui.sel = ni == null ? null : { a: "inv", i: ni };
+    }
+    // 인벤토리로 병이 들어오면 그 병을 선택 (부름은 마지막으로 들어온 병)
+    if (info.dst?.a === "inv" && (info.type === "move" || info.type === "pileTake" || info.type === "summon")) {
+      ui.sel = { ...info.dst };
     }
     if (info.type === "move" && info.row) {
       const { c, r, xp, levelUp } = info.row;

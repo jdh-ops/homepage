@@ -353,7 +353,7 @@ export class Game {
     if (!dst) return false;
     list.splice(k, 1);
     this.setAt(dst, id);
-    this.changed({ type: "pileTake", room, id });
+    this.changed({ type: "pileTake", room, id, dst });
     return true;
   }
 
@@ -389,16 +389,17 @@ export class Game {
   summon(room, color, n) {
     const list = this.s.floor[room];
     const found = list.filter((e) => this.item(e.id).c === color).sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
-    let got = 0;
+    let got = 0, lastDst = null;
     for (const f of found) {
       if (got >= n) break;
       const dst = this.firstFree("inv", f.id);
       if (!dst) break;
       list.splice(list.indexOf(f), 1);
       this.setAt(dst, f.id);
+      lastDst = dst;
       got++;
     }
-    if (got) this.changed({ type: "summon", room, n: got });
+    if (got) this.changed({ type: "summon", room, n: got, dst: lastDst });
     return got;
   }
 
