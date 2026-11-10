@@ -122,10 +122,34 @@ function describeSel() {
   return it.t === "f" ? "플라스크" : `${COLORS[it.c].name} - ${DAYS[it.d]}`;
 }
 
+/** 마우스 그림 (왼쪽/오른쪽 버튼 강조) */
+function mouseIcon(side) {
+  const el = h("span", { class: "mouse-icon", title: side === "L" ? "왼쪽 클릭" : "오른쪽 클릭" });
+  el.innerHTML = `<svg viewBox="0 0 16 22" width="16" height="22" aria-hidden="true">
+    <rect x="1" y="1" width="14" height="20" rx="7" fill="none" stroke="currentColor" stroke-width="1.5"/>
+    <path d="${side === "L" ? "M8 1.5 A6.5 6.5 0 0 0 1.5 8 L1.5 9 L8 9 Z" : "M8 1.5 A6.5 6.5 0 0 1 14.5 8 L14.5 9 L8 9 Z"}" fill="var(--accent)"/>
+    <line x1="8" y1="1.5" x2="8" y2="9" stroke="currentColor" stroke-width="1.2"/>
+    <line x1="1.5" y1="9" x2="14.5" y2="9" stroke="currentColor" stroke-width="1.2"/></svg>`;
+  return el;
+}
+const keycap = (k) => h("kbd", { class: "keycap", text: k });
+
+let infoBuilt = false;
 function renderInfo() {
-  $("#info").replaceChildren(
-    h("div", { class: "info-help", text: "클릭: 줍기/넣기 · 우클릭: 붓기 · R: 버리기 · Q/E: 인벤토리 이전/다음" }),
-    h("div", { class: "info-keys muted", text: "A/D: 이전/다음 방 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
+  if (!infoBuilt) {
+    // 단축키 안내: 아이콘 + 설명, 2줄 × 4칸으로 줄 맞춤
+    const item = (icons, text) => h("div", { class: "key-item" }, h("span", { class: "key-icons" }, ...icons), h("span", { text }));
+    $("#info").replaceChildren(h("div", { class: "key-guide" },
+      item([mouseIcon("L")], "줍기/넣기"),
+      item([mouseIcon("R")], "붓기"),
+      item([keycap("R")], "버리기"),
+      item([keycap("Q"), keycap("E")], "인벤토리 이전/다음"),
+      item([keycap("A"), keycap("D")], "이전/다음 방"),
+      item([keycap("M")], "지도"),
+      item([keycap("K")], "스킬 창"),
+      item([keycap("Esc")], "선택 취소")));
+    infoBuilt = true;
+  }
   const sel = describeSel();
   $("#selLabel").replaceChildren(sel ? h("b", { text: sel }) : h("span", { class: "muted", text: "선택 없음" }));
 }
@@ -447,7 +471,7 @@ function renderSkillBar() {
     const cd = Math.max(0, skillRt.cdUntil[id] - now);
     let state, frac = 0;
     if (lv === 0) {
-      state = "배우지 않음 (K)";
+      state = "K에서 배울 수 있어요";
     } else if (active) {
       const total = s.values[lv - 1] * 1000;
       state = `켜짐 ${((skillRt.autoUntil - now) / 1000).toFixed(1)}초`;
@@ -461,7 +485,7 @@ function renderSkillBar() {
     b.classList.toggle("active", active);
     b.classList.toggle("cooling", lv === 0 || (!active && cd > 0));
     b.replaceChildren(
-      h("kbd", { text: ACTIVE_KEYS[id] }), h("b", { text: s.name }), lv ? ` Lv${lv}` : "",
+      h("kbd", { text: ACTIVE_KEYS[id] }), h("b", { text: lv ? s.name : "???" }), lv ? ` Lv${lv}` : "",
       h("small", { text: state }),
       h("i", { class: "cd", style: `width:${Math.min(1, frac) * 100}%` }));
   }

@@ -84,15 +84,14 @@ b { font-weight: 700; }
   border-top: 1px solid var(--line);
 }
 .info { flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
-.sel-label {
-  /* 선택한 병 라벨: 인벤토리 바로 왼쪽, 오른쪽 정렬 */
-  align-self: flex-start;
-  margin-top: 8px;
-  min-width: 120px;
-  text-align: right;
-  font-size: 15px;
-  white-space: nowrap;
+.side {
+  /* 인벤토리 바로 왼쪽: 선택한 병 라벨 + 사용 스킬 */
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
 }
+.sel-label { margin-top: 8px; text-align: right; font-size: 15px; white-space: nowrap; }
 .info-help { color: var(--text); opacity: 0.85; line-height: 1.5; }
 .inventory {
   background: var(--panel);
@@ -529,7 +528,7 @@ b { font-weight: 700; }
 .mini-grid i.bad { background: repeating-linear-gradient(45deg, var(--bad) 0 2px, #fff 2px 4px); opacity: 1; }
 
 /* ---------- 사용 스킬 ---------- */
-.skill-bar { display: flex; gap: 8px; margin-top: auto; }
+.skill-bar { display: flex; flex-direction: column; gap: 6px; }
 .skill-btn {
   position: relative;
   overflow: hidden;
@@ -633,3 +632,29 @@ b { font-weight: 700; }
 }
 .tap:hover .tap-spout, .tap:hover .tap-spout::after { filter: brightness(1.3); }
 .drum.pouring .tap-handle { transform: rotate(90deg); }
+
+/* ---------- 단축키 안내 ---------- */
+.key-guide {
+  display: grid;
+  grid-template-columns: repeat(4, max-content);
+  gap: 10px 26px;
+  align-items: center;
+  font-size: 14px;
+  color: var(--text);
+}
+.key-item { display: flex; align-items: center; gap: 8px; }
+.key-icons { display: inline-flex; gap: 3px; align-items: center; min-width: 44px; }
+.mouse-icon { display: inline-flex; color: var(--muted); }
+.keycap {
+  display: inline-block;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  border-radius: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  border-bottom-width: 3px;
+  background: rgba(255, 255, 255, 0.07);
+  font: 700 12px/18px system-ui, sans-serif;
+  text-align: center;
+  color: var(--text);
+}
