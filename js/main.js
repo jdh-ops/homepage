@@ -132,7 +132,7 @@ function renderInfo() {
   $("#info").replaceChildren(
     h("div", { class: "info-sel" }, sel ? h("span", {}, "선택: ", h("b", { text: sel })) : h("span", { class: "muted", text: "선택한 병 없음" })),
     h("div", { class: "info-help", text: help }),
-    h("div", { class: "info-keys muted", text: "Q/W: 인벤토리 선택 · R: 버리기 · 우클릭: 붓기 · A/D: 이전/다음 방 · 1/2: 스킬 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
+    h("div", { class: "info-keys muted", text: "Q/E: 인벤토리 선택 · R: 버리기 · 우클릭: 붓기 · A/D: 이전/다음 방 · 1/2: 스킬 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
 }
 
 // ---------- 조작 ----------
@@ -212,7 +212,7 @@ function pourInto(loc) {
 /** R: 선택한 인벤토리 물건 버리기 (조제실: 바닥, 작업실: 거치대/플라스크 자리) */
 function discardSelected() {
   if (ui.busy) return;
-  if (ui.sel?.a !== "inv" || game.itemAt(ui.sel) == null) { toast("인벤토리에서 버릴 병을 먼저 선택하세요 (Q/W)."); return; }
+  if (ui.sel?.a !== "inv" || game.itemAt(ui.sel) == null) { toast("인벤토리에서 버릴 병을 먼저 선택하세요 (Q/E)."); return; }
   const room = game.s.room;
   if (!room.startsWith("brewery") && room !== "workshop") { toast("버리기는 조제실과 작업실에서만 할 수 있어요."); return; }
   quickMove(ui.sel);
@@ -324,7 +324,7 @@ function useSkill(id) {
   if (id === "summon") {
     if (!game.s.room.startsWith("brewery")) { toast("부름은 조제실에서만 쓸 수 있어요."); return; }
     const it = ui.sel?.a === "inv" ? game.item(game.itemAt(ui.sel)) : null;
-    if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/W)."); return; }
+    if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/E)."); return; }
     const free = game.s.inv.slice(0, game.invSize).filter((x) => x == null).length;
     if (!free) { toast("인벤토리가 가득 찼어요."); return; }
     const got = game.summon(+game.s.room.slice(7), it.c, s.values[lv - 1]);
@@ -429,7 +429,7 @@ document.addEventListener("keydown", (e) => {
     case "KeyM": toggleOverlay("#mapOverlay"); break;
     case "KeyK": toggleOverlay("#skillOverlay"); break;
     case "KeyQ": cycleInventory(-1); break;
-    case "KeyW": cycleInventory(1); break;
+    case "KeyE": cycleInventory(1); break;
     case "KeyR": discardSelected(); break;
     case "KeyA": stepRoom(-1); break;
     case "KeyD": stepRoom(1); break;
@@ -440,7 +440,7 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-/** Q/W: 인벤토리에서 물건이 있는 칸 사이 이전/다음 선택 */
+/** Q/E: 인벤토리에서 물건이 있는 칸 사이 이전/다음 선택 */
 function cycleInventory(dir) {
   if (ui.busy) return;
   const filled = [];
@@ -452,7 +452,7 @@ function cycleInventory(dir) {
     if (dir > 0) next = filled.find((i) => i > cur) ?? filled[0];
     else next = [...filled].reverse().find((i) => i < cur) ?? filled[filled.length - 1];
   } else {
-    next = dir > 0 ? filled[0] : filled[filled.length - 1]; // W: 처음, Q: 마지막
+    next = dir > 0 ? filled[0] : filled[filled.length - 1]; // E: 처음, Q: 마지막
   }
   ui.sel = { a: "inv", i: next };
   refresh();
