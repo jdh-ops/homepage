@@ -552,8 +552,8 @@ document.addEventListener("keydown", (e) => {
     case "KeyQ": cycleInventory(-1); break;
     case "KeyE": cycleInventory(1); break;
     case "KeyR": discardSelected(); break;
-    case "KeyA": stepRoom(-1); break;
-    case "KeyD": stepRoom(1); break;
+    case "KeyA": stepRoomOrShelf(-1); break;
+    case "KeyD": stepRoomOrShelf(1); break;
     case "Digit1": case "Numpad1": useSkill("summon"); break;
     case "Digit2": case "Numpad2": useSkill("autoShelve"); break;
     default: return;
@@ -577,6 +577,15 @@ function cycleInventory(dir) {
   }
   ui.sel = { a: "inv", i: next };
   refresh();
+}
+
+/** A/D: 선반을 크게 보고 있으면 이전/다음 색 선반, 아니면 이전/다음 방 */
+function stepRoomOrShelf(dir) {
+  if (game.s.room === "shelves" && ui.shelf != null) {
+    ctx.openShelf((ui.shelf + dir + COLORS.length) % COLORS.length);
+    return;
+  }
+  stepRoom(dir);
 }
 
 /** A/D: 조제실 1~5 → 작업실 → 선반 → 조제실 1 순환 (잠근 방은 건너뜀) */
