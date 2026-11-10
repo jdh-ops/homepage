@@ -346,8 +346,9 @@ function renderMap() {
     el.addEventListener("click", () => toggleRoomLock(id));
     return el;
   });
-  const door = h("div", { class: "map-door", style: "grid-area:door" }, h("b", { text: "문" }), h("small", { text: "잠김" }));
-  $("#mapGrid").replaceChildren(...rooms, door);
+  $("#mapGrid").replaceChildren(...rooms);
+  // 문은 갈색 저택 바깥(아래)에
+  if (!$("#mapDoor")) $("#mapGrid").after(h("div", { class: "map-door", id: "mapDoor" }, h("b", { text: "문" }), h("small", { text: "잠김" })));
 }
 
 function goRoom(id) {
