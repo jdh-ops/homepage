@@ -5,6 +5,10 @@ import { h, vial } from "./common.js";
 
 const M = window.Matter;
 const STEP_MS = 1000 / 60;
+const MAX_FALL_MS = 4000; // 이 시간이 지나면 떨어지던 병도 그 자리에 고정
+
+// 렉 줄이기: 평소엔 모든 병을 고정(static)해 두고,
+// 병을 빼면 그 위에 얹혀 있던 병들만 풀어서 떨어뜨림 → 더미 전체가 출렁이지 않음
 
 export function createBreweryView(ctx) {
   let roomIdx = -1;
@@ -14,6 +18,7 @@ export function createBreweryView(ctx) {
   let raf = 0;
   const bodies = new Map(); // id → body
   const els = new Map();    // id → element
+  const active = new Map(); // 떨어지는 중인 병: id → 풀려난 시각
 
   // ---------- 물리 ----------
   function newEngine() {
@@ -29,7 +34,19 @@ export function createBreweryView(ctx) {
     return e;
   }
 
-  function makeBody(id, x, y, a) {
+  function freeze(b) {
+    M.Body.setVelocity(b, { x: 0, y: 0 });
+    M.Body.setAngularVelocity(b, 0);
+    M.Body.setStatic(b, true);
+  }
+
+  function release(b) {
+    if (b.isStatic) M.Body.setStatic(b, false);
+    M.Sleeping.set(b, false);
+    active.set(b.plugin.id, performance.now());
+  }
+
+  function makeBody(id, x, y, a, dynamic = false) {
     const b = M.Bodies.rectangle(x, y, BOTTLE_W, BOTTLE_H, {
       chamfer: { radius: 6 },
       angle: a,
@@ -41,6 +58,8 @@ export function createBreweryView(ctx) {
     b.plugin.id = id;
     bodies.set(id, b);
     M.Composite.add(engine.world, b);
+    if (dynamic) release(b);
+    else M.Body.setStatic(b, true);
     return b;
   }
 
@@ -61,19 +80,28 @@ export function createBreweryView(ctx) {
       const row = Math.floor(i / perRow), col = i % perRow;
       const x = 20 + (col * (FLOOR_W - 40)) / perRow + Math.random() * 12;
       const y = base - row * (BOTTLE_H + 14) - Math.random() * 20;
-      makeBody(e.id, x, y, (Math.random() - 0.5) * 1.4);
+      makeBody(e.id, x, y, (Math.random() - 0.5) * 1.4, true);
     });
     for (let k = 0; k < 2000; k++) {
       M.Engine.update(engine, STEP_MS);
-      if (k > 60 && [...bodies.values()].every((b) => b.isSleeping)) break;
+      if (k > 60 && [...bodies.values()].every((b) => b.isStatic || b.isSleeping)) break;
     }
+    for (const b of bodies.values()) if (!b.isStatic) freeze(b);
+    active.clear();
     persist();
   }
 
-  /** 빠진 병 주변과 그 위에 있던 병만 깨움 (나머지는 부딪히면 알아서 깨어남) */
-  function wakeAround(x, y) {
-    for (const b of bodies.values()) {
-      if (Math.abs(b.position.x - x) < BOTTLE_H * 1.6 && b.position.y < y + BOTTLE_H * 0.6) M.Sleeping.set(b, false);
+  /** 빠진 병 위에 (직접 또는 다른 병을 거쳐) 얹혀 있던 병만 풀어 줌 */
+  function releaseAbove(removed) {
+    const support = [removed.bounds];
+    const above = [...bodies.values()]
+      .filter((b) => b !== removed && b.position.y < removed.position.y)
+      .sort((a, b) => b.position.y - a.position.y); // 가까운(아래쪽) 것부터
+    for (const b of above) {
+      const bb = b.bounds;
+      const resting = support.some((s) =>
+        bb.min.x < s.max.x + 2 && bb.max.x > s.min.x - 2 && bb.max.y >= s.min.y - 6);
+      if (resting) { support.push(bb); release(b); }
     }
   }
 
@@ -89,12 +117,17 @@ export function createBreweryView(ctx) {
     let last = performance.now();
     const tick = (now) => {
       // 느린 컴퓨터에서도 같은 속도로: 밀린 만큼 여러 번 계산 (최대 4번)
-      let n = Math.min(4, Math.max(1, Math.round((now - last) / STEP_MS)));
+      let n = Math.min(2, Math.max(1, Math.round((now - last) / STEP_MS)));
       last = now;
       while (n--) M.Engine.update(engine, STEP_MS);
-      draw();
-      const moving = [...bodies.values()].some((b) => !b.isSleeping);
-      if (moving) raf = requestAnimationFrame(tick);
+      draw(active.keys());
+      // 멈췄거나 너무 오래 떨어지는 병은 고정
+      for (const [id, t0] of active) {
+        const b = bodies.get(id);
+        if (!b) { active.delete(id); continue; }
+        if (b.isSleeping || now - t0 > MAX_FALL_MS) { freeze(b); active.delete(id); }
+      }
+      if (active.size) raf = requestAnimationFrame(tick);
       else { raf = 0; persist(); }
     };
     raf = requestAnimationFrame(tick);
@@ -112,10 +145,13 @@ export function createBreweryView(ctx) {
     world.style.setProperty("--vw", BOTTLE_W * scale + "px");
   }
 
-  function draw() {
+  /** ids를 주면 그 병들만 다시 그림 (떨어지는 병만) */
+  function draw(ids = bodies.keys()) {
     const w = BOTTLE_W * scale, hh = BOTTLE_H * scale;
-    for (const [id, b] of bodies) {
+    for (const id of ids) {
+      const b = bodies.get(id);
       const el = els.get(id);
+      if (!b) continue;
       if (!el) continue;
       el.style.transform =
         `translate(${b.position.x * scale - w / 2}px, ${b.position.y * scale - hh / 2}px) rotate(${b.angle}rad)`;
@@ -143,9 +179,10 @@ export function createBreweryView(ctx) {
     // 사라진 병 (집어 감, 부름)
     for (const [id, b] of bodies) {
       if (ids.has(id)) continue;
-      wakeAround(b.position.x, b.position.y);
       M.Composite.remove(engine.world, b);
       bodies.delete(id);
+      active.delete(id);
+      releaseAbove(b);
       els.get(id)?.remove();
       els.delete(id);
       changed = true;
@@ -155,12 +192,12 @@ export function createBreweryView(ctx) {
       if (bodies.has(e.id)) continue;
       const x = e.x ?? 30 + Math.random() * (FLOOR_W - 60);
       const y = e.y ?? heapTopNear(x) - BOTTLE_H;
-      makeBody(e.id, x, y, (Math.random() - 0.5) * 0.6);
+      makeBody(e.id, x, y, (Math.random() - 0.5) * 0.6, true);
       elFor(e.id);
+      draw([e.id]);
       changed = true;
     }
-    if (changed) run();
-    draw();
+    if (changed && active.size) run();
   }
 
   // ---------- 만들기 ----------
@@ -205,6 +242,7 @@ export function createBreweryView(ctx) {
       const unplaced = list.filter((e) => e.x == null && !e.drop);
       if (unplaced.length) settleUnplaced(unplaced);
       for (const id of bodies.keys()) elFor(id);
+      draw();
       sync(); // 떨어지던 중에 저장된 병 처리
       // 더미 꼭대기가 보이도록 스크롤
       const top = Math.min(FLOOR_H, ...[...bodies.values()].map((b) => b.bounds.min.y));
