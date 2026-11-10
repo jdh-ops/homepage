@@ -48,7 +48,7 @@ export function levelFromXp(xp) {
 
 // ---------- 테스트용 ----------
 // 임시: 이 레벨보다 낮으면 이 레벨로 올려서 시작 (기존 세이브 포함). 정식 버전에서는 1로.
-export const TEST_START_LEVEL = 30;
+export const TEST_START_LEVEL = 1;
 
 // ---------- 구역 해금 ----------
 export const ZONE3_LEVEL = 10;

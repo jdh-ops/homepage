@@ -8,7 +8,7 @@ const STEP_MS = 1000 / 60;
 const MAX_FALL_MS = 4000; // 이 시간이 지나면 떨어지던 병도 그 자리에 고정
 
 // 렉 줄이기: 평소엔 모든 병을 고정(static)해 두고,
-// 병을 빼면 그 위에 얹혀 있던 병들만 풀어서 떨어뜨림 → 더미 전체가 출렁이지 않음
+// 병을 빼면 그 병과 닿아 있던 병, 그 병들과 닿아 있던 병까지만 풀어서 떨어뜨림 (더 번지지 않음)
 
 export function createBreweryView(ctx) {
   let roomIdx = -1;
@@ -91,18 +91,26 @@ export function createBreweryView(ctx) {
     persist();
   }
 
-  /** 빠진 병 위에 (직접 또는 다른 병을 거쳐) 얹혀 있던 병만 풀어 줌 */
-  function releaseAbove(removed) {
-    const support = [removed.bounds];
-    const above = [...bodies.values()]
-      .filter((b) => b !== removed && b.position.y < removed.position.y)
-      .sort((a, b) => b.position.y - a.position.y); // 가까운(아래쪽) 것부터
-    for (const b of above) {
-      const bb = b.bounds;
-      const resting = support.some((s) =>
-        bb.min.x < s.max.x + 2 && bb.max.x > s.min.x - 2 && bb.max.y >= s.min.y - 6);
-      if (resting) { support.push(bb); release(b); }
-    }
+  /** b와 실제로 닿아 있는 병들 (아래에 깔린 병은 제외: 위·옆만) */
+  function touching(b, exclude) {
+    // 살짝(가장자리 4단위) 큰 모양으로 겹치는 병 = 닿아 있는 병
+    const probe = M.Bodies.rectangle(b.position.x, b.position.y, BOTTLE_W + 8, BOTTLE_H + 8, {
+      angle: b.angle, chamfer: { radius: 10 },
+    });
+    const near = [...bodies.values()].filter((o) =>
+      !exclude.has(o) && o.position.y < b.position.y + BOTTLE_H * 0.3 &&
+      M.Bounds.overlaps(o.bounds, probe.bounds));
+    return M.Query.collides(probe, near).map((c) => (c.bodyA === probe ? c.bodyB : c.bodyA));
+  }
+
+  /** 빠진 병과 닿아 있던 병 + 그 병들과 닿아 있던 병까지만 풀어 줌 (더 번지지 않음) */
+  function releaseTouching(removed) {
+    const seen = new Set([removed]);
+    const first = touching(removed, seen);
+    first.forEach((b) => seen.add(b));
+    const second = [];
+    for (const b of first) for (const o of touching(b, seen)) { seen.add(o); second.push(o); }
+    for (const b of [...first, ...second]) release(b);
   }
 
   function persist() {
@@ -116,7 +124,7 @@ export function createBreweryView(ctx) {
     if (raf) return;
     let last = performance.now();
     const tick = (now) => {
-      // 느린 컴퓨터에서도 같은 속도로: 밀린 만큼 여러 번 계산 (최대 4번)
+      // 느린 컴퓨터에서도 같은 속도로: 밀린 만큼 여러 번 계산 (최대 2번)
       let n = Math.min(2, Math.max(1, Math.round((now - last) / STEP_MS)));
       last = now;
       while (n--) M.Engine.update(engine, STEP_MS);
@@ -182,7 +190,7 @@ export function createBreweryView(ctx) {
       M.Composite.remove(engine.world, b);
       bodies.delete(id);
       active.delete(id);
-      releaseAbove(b);
+      releaseTouching(b);
       els.get(id)?.remove();
       els.delete(id);
       changed = true;

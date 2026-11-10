@@ -99,6 +99,18 @@ export class Game {
     // 경험치 = 완성한 행 × ROW_XP (경험치 단위가 바뀌어도 맞도록 다시 계산)
     // (임시 테스트: 시작 레벨만큼의 경험치를 더해 줌. TEST_START_LEVEL = 1이면 0)
     this.s.xp = this.completedRows() * ROW_XP + xpForLevel(TEST_START_LEVEL);
+    // 레벨이 내려가서 쓴 포인트가 받은 포인트보다 많으면: 스킬을 처음 상태로 되돌리고 포인트 돌려줌
+    if (this.skillPoints < 0) {
+      for (const sk of SKILLS) this.s.skills[sk.id] = sk.start ?? 1;
+      // 줄어든 인벤토리 칸 밖에 있던 병은 거치대/플라스크 자리로 (자리 없으면 그대로 두었다가 칸이 늘면 다시 보임)
+      for (let i = this.invSize; i < this.s.inv.length; i++) {
+        const id = this.s.inv[i];
+        if (id == null) continue;
+        const dst = this.firstFree(this.item(id).t === "f" ? "flask" : "rack", id);
+        if (dst) { this.s.inv[i] = null; this.setAt(dst, id); }
+      }
+      this.skillsReset = true;
+    }
     this.compactInventory();
     if (!this.s.sorter) this.s.sorter = { inj: new Array(SORTER_INJECTORS).fill(null), store: [] };
     // 잠긴 주입기에 꽂혀 있던 병은 인벤토리나 거치대/플라스크 자리로

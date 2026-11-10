@@ -606,6 +606,7 @@ function showIntro() { openOverlay("#introOverlay"); }
 
 bindGame();
 refresh();
+if (game.skillsReset) toast("레벨이 낮아져서 스킬을 처음 상태로 되돌리고 포인트를 돌려드렸어요.");
 try {
   if (!localStorage.getItem("witch-potion-intro")) {
     showIntro();
