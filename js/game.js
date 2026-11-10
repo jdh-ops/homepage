@@ -1,7 +1,7 @@
 // 게임 상태와 규칙. 화면과 무관하게 동작한다.
 import {
   COLORS, DAYS, UNITS_PER_BOTTLE, BOTTLES_PER_LABEL, SHELF_ROWS, BREWERY_COUNT,
-  ROW_XP, levelFromXp, SKILLS, SKILL_COSTS, SKILL_MAX,
+  ROW_XP, levelFromXp, xpForLevel, TEST_START_LEVEL, SKILLS, SKILL_COSTS, SKILL_MAX,
   MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, ZONE3_LEVEL, ZONE4_LEVEL, SAVE_KEY,
 } from "./config.js";
 
@@ -88,6 +88,8 @@ export class Game {
 
   /** 예전 세이브 보정: 열 방식 더미(piles) → 바닥 위치 방식(floor) */
   migrate() {
+    // 임시 테스트: 시작 레벨 끌어올리기
+    this.s.xp = Math.max(this.s.xp, xpForLevel(TEST_START_LEVEL));
     this.compactInventory();
     if (!this.s.floor && this.s.piles) {
       this.s.floor = this.s.piles.map((cols) => cols.flat().map((id) => ({ id, x: null, y: null, a: 0 })));
