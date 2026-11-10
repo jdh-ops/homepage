@@ -170,21 +170,26 @@ b { font-weight: 700; }
 .flask .vial-glass { inset: 22% 0 0 0; border-radius: 45% 45% 50% 50% / 30% 30% 40% 40%; }
 .flask .seg { height: 24%; }
 .vial-label {
+  /* 병 가운데 세로 띠지: 라벨 색 바탕 + 요일 한자 */
   position: absolute;
   left: 50%;
-  bottom: 8%;
+  top: 40%;
+  bottom: 11%;
   transform: translateX(-50%);
-  width: 78%;
-  height: calc(var(--vw) * 0.5);
-  border-radius: 3px;
-  background: #f3ead6;
-  border-top: calc(var(--vw) * 0.12) solid var(--lc);
-  color: #2b2135;
-  font-size: calc(var(--vw) * 0.34);
-  font-weight: 800;
-  line-height: calc(var(--vw) * 0.38);
-  text-align: center;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  width: 42%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  background: var(--lc);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-family: "Noto Serif KR", "Batang", "SimSun", serif;
+  font-size: calc(var(--vw) * 0.38);
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 1px #000;
 }
 
 /* ---------- 방 공통 ---------- */
@@ -193,7 +198,7 @@ b { font-weight: 700; }
 .room-caption { font-size: 15px; }
 
 /* ---------- 조제실 ---------- */
-.brewery { display: grid; grid-template-rows: 170px minmax(0, 1fr); }
+.brewery { display: grid; grid-template-rows: 140px minmax(0, 1fr); }
 .cauldron-area {
   position: relative;
   display: flex;
@@ -203,7 +208,7 @@ b { font-weight: 700; }
   padding-bottom: 10px;
 }
 .cauldron-area .room-caption { position: absolute; left: 20px; top: 14px; }
-.cauldron { position: relative; width: 210px; height: 140px; }
+.cauldron { position: relative; width: 190px; height: 124px; transform-origin: bottom; }
 .pot {
   position: absolute;
   left: 15px;
@@ -502,3 +507,34 @@ b { font-weight: 700; }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 .badge[hidden] { display: none; }
 .mini-grid i.bad { background: repeating-linear-gradient(45deg, var(--bad) 0 2px, #fff 2px 4px); opacity: 1; }
+
+/* ---------- 사용 스킬 ---------- */
+.skill-bar { display: flex; gap: 8px; margin-top: auto; }
+.skill-btn {
+  position: relative;
+  overflow: hidden;
+  min-width: 150px;
+  text-align: left;
+  padding: 8px 12px;
+}
+.skill-btn kbd {
+  display: inline-block;
+  min-width: 18px;
+  margin-right: 6px;
+  padding: 0 4px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.15);
+  font: 700 12px/18px system-ui, sans-serif;
+  text-align: center;
+}
+.skill-btn small { display: block; color: var(--muted); font-size: 12px; margin-top: 2px; }
+.skill-btn .cd {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--muted);
+}
+.skill-btn.active { border-color: var(--gold); box-shadow: 0 0 12px rgba(232, 196, 106, 0.4); }
+.skill-btn.active .cd { background: var(--gold); }
+.skill-btn.cooling { opacity: 0.6; }

@@ -10,13 +10,14 @@ export const COLORS = [
   { key: "violet", name: "보라", hex: "#a160e8" },
 ];
 export const DAYS = ["월", "화", "수", "목", "금", "토", "일"];
+export const DAYS_HANJA = ["月", "火", "水", "木", "金", "土", "日"]; // 약병 라벨용
 
 export const UNITS_PER_BOTTLE = 4;
 export const BOTTLES_PER_LABEL = 30;            // 색-요일 조합마다 30병 → 7×7×30 = 1470
 export const SHELF_ROWS = 30;
 export const BREWERY_COUNT = 5;                 // 조제실 5곳, 294병씩
-export const PILE_COLUMNS = 21;                 // 조제실 창고 더미 열 수
-export const PILE_MAX_HEIGHT = 22;
+export const PILE_COLUMNS = 28;                 // 조제실 창고 더미 열 수
+export const PILE_MAX_HEIGHT = 16;              // 한 열 최대 높이 (병마다 절반 이상 보이게)
 
 // ---------- 경험치 / 레벨 ----------
 // 선반 한 행(7병)을 오류 없이 채우면 ROW_XP.

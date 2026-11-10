@@ -45,11 +45,14 @@ export function createBreweryView(ctx) {
     countEl.textContent = g.pileCount(roomIdx);
 
     const W = pileEl.clientWidth || 1000;
-    const H = pileEl.clientHeight || 600;
+    const H = pileEl.clientHeight || 500;
     const colW = W / PILE_COLUMNS;
-    const bw = Math.max(22, Math.min(40, colW * 0.78));
+    const maxH = PILE_MAX_HEIGHT; // 크기를 고정해 두어야 병을 뺄 때 전체 크기가 바뀌지 않음
+    // 위 병이 아래 병을 절반 넘게 가리지 않도록: 층 간격 ≥ 병 높이의 절반
+    const fitBh = H / (1 + 0.6 * (maxH - 1)); // 기울기 여유 포함
+    const bw = Math.max(16, Math.min(40, colW * 0.72, fitBh / 1.9));
     const bh = bw * 1.9;
-    const step = Math.min(bh * 0.62, (H - bh - 8) / (PILE_MAX_HEIGHT - 1));
+    const step = maxH > 1 ? Math.min(bh * 0.66, (H - bh) / (maxH - 1)) : 0;
     pileEl.style.setProperty("--vw", bw + "px");
 
     const alive = new Set();
@@ -64,12 +67,12 @@ export function createBreweryView(ctx) {
           pileEl.append(el);
           els.set(id, el);
         }
-        const x = ci * colW + (colW - bw) / 2 + jitter(id, 1) * colW * 0.7;
-        const y = k * step + Math.abs(jitter(id, 2)) * step * 0.3;
+        const x = ci * colW + (colW - bw) / 2 + jitter(id, 1) * colW * 0.24;
+        const y = k * step;
         el.style.left = x + "px";
         el.style.bottom = y + "px";
         el.style.zIndex = k * 3 + ((ci * 7) % 3);
-        el.style.setProperty("--rot", jitter(id, 3) * 26 + "deg");
+        el.style.setProperty("--rot", jitter(id, 3) * 10 + "deg");
         el.classList.toggle("top", k === col.length - 1);
       });
     });

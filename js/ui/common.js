@@ -1,4 +1,4 @@
-import { COLORS, DAYS, UNITS_PER_BOTTLE } from "../config.js";
+import { COLORS, DAYS, DAYS_HANJA, UNITS_PER_BOTTLE } from "../config.js";
 
 export const $ = (sel, root = document) => root.querySelector(sel);
 
@@ -39,7 +39,7 @@ export function vial(item, cls = "") {
   }
   el.append(h("div", { class: "vial-neck" }), glass);
   if (!flask) {
-    el.append(h("div", { class: "vial-label", "--lc": COLORS[item.c].hex, text: DAYS[item.d] }));
+    el.append(h("div", { class: "vial-label", "--lc": COLORS[item.c].hex, text: DAYS_HANJA[item.d] }));
   }
   el.title = flask ? "플라스크" : `라벨: ${COLORS[item.c].name}-${DAYS[item.d]}`;
   return el;

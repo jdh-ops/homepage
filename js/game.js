@@ -25,6 +25,20 @@ function shuffle(arr, rand) {
   return arr;
 }
 
+/** 약병들을 더미 열에 나눠 쌓기 (가운데가 조금 더 높게) */
+function distributePile(ids, rand) {
+  const cols = Array.from({ length: PILE_COLUMNS }, () => []);
+  const weight = cols.map((_, i) => 1 + 1.2 * Math.sin((Math.PI * (i + 0.5)) / PILE_COLUMNS));
+  for (const id of ids) {
+    const open = cols.map((c, i) => (c.length < PILE_MAX_HEIGHT ? weight[i] : 0));
+    let x = rand() * open.reduce((a, b) => a + b, 0);
+    let pick = 0;
+    while (pick < cols.length - 1 && (open[pick] === 0 || x > open[pick])) x -= open[pick++];
+    cols[pick].push(id);
+  }
+  return cols;
+}
+
 // ---------- 새 게임 ----------
 export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) {
   const rand = mulberry32(seed);
@@ -56,22 +70,7 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
   const bottleIds = shuffle(labels.map((_, i) => i), rand);
   const per = Math.ceil(bottleIds.length / BREWERY_COUNT);
   const piles = [];
-  for (let r = 0; r < BREWERY_COUNT; r++) {
-    const cols = Array.from({ length: PILE_COLUMNS }, () => []);
-    const ids = bottleIds.slice(r * per, (r + 1) * per);
-    // 가운데가 더 높게 쌓이는 경향
-    const weight = cols.map((_, i) => 1 + 2 * Math.sin((Math.PI * (i + 0.5)) / PILE_COLUMNS));
-    for (const id of ids) {
-      let pick;
-      do {
-        let x = rand() * weight.reduce((a, b) => a + b, 0);
-        pick = 0;
-        while (x > weight[pick]) x -= weight[pick++];
-      } while (cols[pick].length >= PILE_MAX_HEIGHT);
-      cols[pick].push(id);
-    }
-    piles.push(cols);
-  }
+  for (let r = 0; r < BREWERY_COUNT; r++) piles.push(distributePile(bottleIds.slice(r * per, (r + 1) * per), rand));
 
   const skills = {};
   for (const s of SKILLS) skills[s.id] = 1;
@@ -98,6 +97,19 @@ export class Game {
   constructor(state) {
     this.s = state;
     this.listeners = new Set();
+    this.migrate();
+  }
+
+  /** 예전 세이브 보정: 더미 열 수/높이가 바뀌었으면 다시 쌓기 */
+  migrate() {
+    this.s.piles = this.s.piles.map((cols, r) => {
+      if (cols.length === PILE_COLUMNS && cols.every((c) => c.length <= PILE_MAX_HEIGHT)) return cols;
+      // 아래층부터 차례로 모아서 다시 나눔
+      const ids = [];
+      const maxH = Math.max(0, ...cols.map((c) => c.length));
+      for (let k = 0; k < maxH; k++) for (const c of cols) if (c[k] != null) ids.push(c[k]);
+      return distributePile(ids, mulberry32(this.s.seed + r + 1));
+    });
   }
 
   onChange(fn) { this.listeners.add(fn); }
@@ -281,6 +293,42 @@ export class Game {
 
   pileCount(room) {
     return this.s.piles[room].reduce((a, c) => a + c.length, 0);
+  }
+
+  /** 부름: 같은 방 바닥에서 라벨 색이 같은 약병을 위쪽부터 최대 n개 인벤토리로 */
+  summon(room, color, n) {
+    const cols = this.s.piles[room];
+    const found = [];
+    cols.forEach((col, ci) => col.forEach((id, k) => {
+      if (this.item(id).c === color) found.push({ ci, k, id });
+    }));
+    found.sort((a, b) => b.k - a.k); // 위에 있는 것부터
+    let got = 0;
+    for (const f of found) {
+      if (got >= n) break;
+      const dst = this.firstFree("inv", f.id);
+      if (!dst) break;
+      const col = cols[f.ci];
+      col.splice(col.indexOf(f.id), 1);
+      this.setAt(dst, f.id);
+      got++;
+    }
+    if (got) this.changed({ type: "summon", room, n: got });
+    return got;
+  }
+
+  /** 자동 진열: 인벤토리에서 c색 선반에 맞는 완성 약병 하나를 빈 칸에 넣기 */
+  autoShelveOne(c) {
+    for (let i = 0; i < this.invSize; i++) {
+      const src = { a: "inv", i };
+      const it = this.item(this.itemAt(src));
+      if (!it || it.t !== "b" || it.c !== c || !this.isComplete(it) || it.u[0] !== c) continue;
+      for (let r = 0; r < SHELF_ROWS; r++) {
+        const dst = { a: "shelf", c, r, d: it.d };
+        if (this.accepts(dst, it.id)) { this.move(src, dst); return dst; }
+      }
+    }
+    return null;
   }
 
   // ----- 선반 -----

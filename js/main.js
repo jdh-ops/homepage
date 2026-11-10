@@ -132,7 +132,7 @@ function renderInfo() {
   $("#info").replaceChildren(
     h("div", { class: "info-sel" }, sel ? h("span", {}, "선택: ", h("b", { text: sel })) : h("span", { class: "muted", text: "선택한 병 없음" })),
     h("div", { class: "info-help", text: help }),
-    h("div", { class: "info-keys muted", text: "M: 지도 · K: 스킬 · Esc: 선택 취소" }));
+    h("div", { class: "info-keys muted", text: "Q/E: 인벤토리 선택 · A/D: 이전/다음 방 · 1/2: 스킬 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
 }
 
 // ---------- 조작 ----------
@@ -167,7 +167,7 @@ async function doPour(src, dst, n) {
   ui.pourMs = (POUR_BASE_MS + POUR_PER_UNIT_MS * n) * factor;
   ui.busy = true;
   ui.pouring = new Set([locKey(src), locKey(dst)]);
-  ui.sel = null;
+  ui.sel = src; // 부은 뒤에도 선택 유지
   refresh();
   await delay(ui.pourMs);
   ui.pouring.clear();
@@ -276,8 +276,7 @@ function renderSkills() {
     const val = (l) => `${s.values[l - 1]}${s.unit}`;
     const cdText = s.cooldown ? ` · 대기 ${s.cooldown[lv - 1]}초` : "";
     const btn = h("button", { class: "btn primary small" });
-    if (s.active) { btn.textContent = "준비 중"; btn.disabled = true; }
-    else if (!unlocked) { btn.textContent = `Lv ${s.unlock}에 해금`; btn.disabled = true; }
+    if (!unlocked) { btn.textContent = `Lv ${s.unlock}에 해금`; btn.disabled = true; }
     else if (cost == null) { btn.textContent = "최대"; btn.disabled = true; }
     else {
       btn.textContent = `강화 (${cost}P)`;
@@ -294,6 +293,83 @@ function renderSkills() {
   });
   $("#skillList").replaceChildren(...list);
 }
+
+// ---------- 사용 스킬 (1: 부름, 2: 자동 진열) ----------
+const skillRt = { cdUntil: { summon: 0, autoShelve: 0 }, autoUntil: 0, lastTick: 0 };
+const ACTIVE_KEYS = { summon: "1", autoShelve: "2" };
+
+function useSkill(id) {
+  const now = performance.now();
+  const s = game.skillDef(id);
+  const lv = game.s.skills[id];
+  if (!game.skillUnlocked(id)) { toast(`${s.name}: 레벨 ${s.unlock}에 해금돼요.`); return; }
+  if (id === "autoShelve" && now < skillRt.autoUntil) { toast("자동 진열이 이미 켜져 있어요."); return; }
+  if (now < skillRt.cdUntil[id]) { toast(`${s.name}: ${((skillRt.cdUntil[id] - now) / 1000).toFixed(1)}초 뒤에 쓸 수 있어요.`); return; }
+
+  if (id === "summon") {
+    if (!game.s.room.startsWith("brewery")) { toast("부름은 조제실에서만 쓸 수 있어요."); return; }
+    const it = ui.sel?.a === "inv" ? game.item(game.itemAt(ui.sel)) : null;
+    if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/E)."); return; }
+    const free = game.s.inv.slice(0, game.invSize).filter((x) => x == null).length;
+    if (!free) { toast("인벤토리가 가득 찼어요."); return; }
+    const got = game.summon(+game.s.room.slice(7), it.c, s.values[lv - 1]);
+    if (!got) { toast(`이 방 바닥에 ${COLORS[it.c].name} 라벨 약병이 없어요.`); return; }
+    toast(`부름! ${COLORS[it.c].name} 라벨 약병 ${got}개를 불러왔어요.`);
+    skillRt.cdUntil.summon = now + s.cooldown[lv - 1] * 1000;
+  } else {
+    skillRt.autoUntil = now + s.values[lv - 1] * 1000;
+    skillRt.cdUntil.autoShelve = skillRt.autoUntil + s.cooldown[lv - 1] * 1000; // 대기시간은 효과가 끝난 뒤부터
+    toast(`자동 진열 ${s.values[lv - 1]}초! 선반을 크게 열어 두면 맞는 약병이 알아서 올라가요.`);
+  }
+  renderSkillBar();
+}
+
+function renderSkillBar() {
+  const now = performance.now();
+  const bar = $("#skillBar");
+  if (!bar.childElementCount) {
+    for (const id of Object.keys(ACTIVE_KEYS)) {
+      const b = h("button", { class: "btn skill-btn", "data-skill": id });
+      b.addEventListener("click", () => useSkill(id));
+      bar.append(b);
+    }
+  }
+  for (const b of bar.children) {
+    const id = b.dataset.skill;
+    const s = game.skillDef(id);
+    const lv = game.s.skills[id];
+    const active = id === "autoShelve" && now < skillRt.autoUntil;
+    const cd = Math.max(0, skillRt.cdUntil[id] - now);
+    let state, frac = 0;
+    if (active) {
+      const total = s.values[lv - 1] * 1000;
+      state = `켜짐 ${((skillRt.autoUntil - now) / 1000).toFixed(1)}초`;
+      frac = (skillRt.autoUntil - now) / total;
+    } else if (cd > 0) {
+      state = `대기 ${(cd / 1000).toFixed(1)}초`;
+      frac = cd / (s.cooldown[lv - 1] * 1000);
+    } else {
+      state = id === "summon" ? `${s.values[lv - 1]}병 불러오기` : `${s.values[lv - 1]}초 동안`;
+    }
+    b.classList.toggle("active", active);
+    b.classList.toggle("cooling", !active && cd > 0);
+    b.replaceChildren(
+      h("kbd", { text: ACTIVE_KEYS[id] }), h("b", { text: s.name }), ` Lv${lv}`,
+      h("small", { text: state }),
+      h("i", { class: "cd", style: `width:${Math.min(1, frac) * 100}%` }));
+  }
+}
+
+// 0.1초마다: 스킬 표시 갱신 + 자동 진열 동작
+setInterval(() => {
+  const now = performance.now();
+  renderSkillBar();
+  if (now < skillRt.autoUntil && !ui.busy && game.s.room === "shelves" && ui.shelf != null && now - skillRt.lastTick > 300) {
+    skillRt.lastTick = now;
+    const dst = game.autoShelveOne(ui.shelf);
+    if (dst && ui.sel?.a === "inv" && game.itemAt(ui.sel) == null) { ui.sel = null; refresh(); }
+  }
+}, 100);
 
 // ---------- 오버레이 ----------
 function openOverlay(sel) {
@@ -326,14 +402,54 @@ $("#btnNewGame").addEventListener("click", () => {
 $("#btnIntroOk").addEventListener("click", () => closeOverlay("#introOverlay"));
 
 document.addEventListener("keydown", (e) => {
-  if (e.target.closest("input, textarea")) return;
+  if (e.target.closest("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
   if (e.key === "Escape") {
     const open = document.querySelector(".overlay.show");
     if (open) open.classList.remove("show");
     else if (ui.sel) { ui.sel = null; refresh(); }
-  } else if (e.key === "m" || e.key === "M" || e.key === "ㅡ") toggleOverlay("#mapOverlay");
-  else if (e.key === "k" || e.key === "K" || e.key === "ㅏ") toggleOverlay("#skillOverlay");
+    return;
+  }
+  if (e.repeat && (e.code === "KeyM" || e.code === "KeyK" || e.code.startsWith("Digit"))) return;
+  switch (e.code) {
+    case "KeyM": toggleOverlay("#mapOverlay"); break;
+    case "KeyK": toggleOverlay("#skillOverlay"); break;
+    case "KeyQ": cycleInventory(-1); break;
+    case "KeyE": cycleInventory(1); break;
+    case "KeyA": stepRoom(-1); break;
+    case "KeyD": stepRoom(1); break;
+    case "Digit1": case "Numpad1": useSkill("summon"); break;
+    case "Digit2": case "Numpad2": useSkill("autoShelve"); break;
+    default: return;
+  }
+  e.preventDefault();
 });
+
+/** Q/E: 인벤토리에서 물건이 있는 칸 사이 이전/다음 선택 */
+function cycleInventory(dir) {
+  if (ui.busy) return;
+  const filled = [];
+  for (let i = 0; i < game.invSize; i++) if (game.s.inv[i] != null) filled.push(i);
+  if (!filled.length) return;
+  let next;
+  if (ui.sel?.a === "inv") {
+    const cur = ui.sel.i;
+    if (dir > 0) next = filled.find((i) => i > cur) ?? filled[0];
+    else next = [...filled].reverse().find((i) => i < cur) ?? filled[filled.length - 1];
+  } else {
+    next = dir > 0 ? filled[0] : filled[filled.length - 1]; // E: 처음, Q: 마지막
+  }
+  ui.sel = { a: "inv", i: next };
+  refresh();
+}
+
+/** A/D: 조제실 1~5 → 작업실 → 선반 방 → 조제실 1 순환 */
+const ROOM_ORDER = [...Array.from({ length: BREWERY_COUNT }, (_, i) => `brewery${i}`), "workshop", "shelves"];
+function stepRoom(dir) {
+  if (ui.busy) return;
+  const i = ROOM_ORDER.indexOf(game.s.room);
+  goRoom(ROOM_ORDER[(i + dir + ROOM_ORDER.length) % ROOM_ORDER.length]);
+  if ($("#mapOverlay").classList.contains("show")) renderMap();
+}
 
 window.addEventListener("resize", () => { if (game.s.room.startsWith("brewery")) breweryView.update(); });
 
