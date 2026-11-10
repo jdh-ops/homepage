@@ -658,3 +658,34 @@ b { font-weight: 700; }
   text-align: center;
   color: var(--text);
 }
+
+/* ---------- 계정 / 로그인 ---------- */
+.menu-panel { width: 400px; }
+.account-info { display: grid; grid-template-columns: 70px 1fr; gap: 8px 12px; margin: 0 0 8px; }
+.account-info dt { color: var(--muted); }
+.account-info dd { margin: 0; }
+.pw-row { display: flex; align-items: center; gap: 10px; }
+#accPw { font-family: ui-monospace, monospace; }
+.menu-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.login-panel { width: 360px; display: flex; flex-direction: column; gap: 12px; }
+.login-panel h2 { text-align: center; margin-bottom: 4px; }
+.login-panel label { display: flex; flex-direction: column; gap: 5px; font-size: 13px; color: var(--muted); }
+.login-panel input {
+  font: inherit;
+  font-size: 15px;
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 10px;
+  user-select: text;
+}
+.login-panel input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.pw-field { display: flex; gap: 6px; }
+.pw-field input { flex: 1; min-width: 0; }
+.login-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 10px; background: rgba(0, 0, 0, 0.25); }
+.login-tabs .tab { appearance: none; border: 0; border-radius: 7px; padding: 8px; font: inherit; color: var(--muted); background: transparent; cursor: pointer; }
+.login-tabs .tab.active { background: var(--panel2); color: var(--text); font-weight: 700; }
+.login-panel:not(.signup) .signup-only { display: none; }
+.login-error { min-height: 18px; margin: 0; color: #ff8a95; font-size: 13px; }
+#loginOverlay { background: rgba(6, 4, 14, 0.85); }

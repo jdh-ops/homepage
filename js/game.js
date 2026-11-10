@@ -2,7 +2,7 @@
 import {
   COLORS, DAYS, UNITS_PER_BOTTLE, BOTTLES_PER_LABEL, SHELF_ROWS, BREWERY_COUNT,
   ROW_XP, levelFromXp, xpForLevel, TEST_START_LEVEL, SKILLS, SKILL_COSTS, SKILL_MAX,
-  MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, SORTER_INJECTORS, ZONE3_LEVEL, ZONE4_LEVEL, SAVE_KEY,
+  MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, SORTER_INJECTORS, ZONE3_LEVEL, ZONE4_LEVEL,
 } from "./config.js";
 
 const NC = COLORS.length;
@@ -448,25 +448,6 @@ export class Game {
   setRoom(room) {
     this.s.room = room;
     this.changed({ type: "room", room });
-  }
-
-  // ----- 저장 -----
-  save() {
-    try { localStorage.setItem(SAVE_KEY, JSON.stringify(this.s)); return true; }
-    catch { return false; }
-  }
-
-  static load() {
-    try {
-      const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return null;
-      const s = JSON.parse(raw);
-      return s && s.v === 1 ? new Game(s) : null;
-    } catch { return null; }
-  }
-
-  static clearSave() {
-    try { localStorage.removeItem(SAVE_KEY); } catch { /* 무시 */ }
   }
 }
 

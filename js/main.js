@@ -1,14 +1,18 @@
 import {
   COLORS, DAYS, SKILLS, SKILL_MAX, MAX_LEVEL, xpForLevel, ZONE3_LEVEL, ZONE4_LEVEL,
-  SHELF_ROWS, POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
+  SAVE_KEY, SHELF_ROWS, POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
+import { encodeSave, decodeSave } from "./save-format.js";
+import * as cloud from "./cloud.js";
 import { $, h, vial, locKey, parseLoc, toast, delay } from "./ui/common.js";
 import { createBreweryView } from "./ui/brewery.js";
 import { renderWorkshop } from "./ui/workshop.js";
 import { renderShelves } from "./ui/shelves.js";
 
-let game = Game.load() || new Game(newGameState());
+// 로그인 전에는 임시 게임(저장 안 함). 로그인하면 그 계정의 세이브로 바꿈
+let game = new Game(newGameState());
+let account = null; // { id, nickname, createdAt }
 
 const ui = {
   sel: null,          // 선택한 위치
@@ -506,6 +510,7 @@ setInterval(() => {
 // ---------- 오버레이 ----------
 function openOverlay(sel) {
   if (sel === "#mapOverlay") renderMap();
+  if (sel === "#menuOverlay") { $("#btnPwToggle").dataset.shown = "0"; renderAccount(); }
   if (sel === "#skillOverlay") renderSkills();
   $(sel).classList.add("show");
 }
@@ -519,24 +524,23 @@ $("#btnMap").addEventListener("click", () => toggleOverlay("#mapOverlay"));
 $("#btnSkills").addEventListener("click", () => toggleOverlay("#skillOverlay"));
 $("#btnMenu").addEventListener("click", () => toggleOverlay("#menuOverlay"));
 document.querySelectorAll(".overlay").forEach((o) => {
+  if (o.id === "loginOverlay") return; // 로그인 화면은 닫을 수 없음
   o.addEventListener("click", (e) => { if (e.target === o || e.target.closest("[data-close]")) o.classList.remove("show"); });
 });
 $("#btnNewGame").addEventListener("click", () => {
   if (!confirm("지금까지의 진행 상황이 모두 사라져요. 새로 시작할까요?")) return;
-  Game.clearSave();
-  game = new Game(newGameState());
-  bindGame();
-  ui.sel = null; ui.shelf = null; mountedRoom = null;
+  startGame(new Game(newGameState()));
+  saveNow(true);
   closeOverlay("#menuOverlay");
-  refresh();
   showIntro();
 });
 $("#btnIntroOk").addEventListener("click", () => closeOverlay("#introOverlay"));
 
 document.addEventListener("keydown", (e) => {
   if (e.target.closest("input, textarea") || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (!account) return; // 로그인 화면
   if (e.key === "Escape") {
-    const open = document.querySelector(".overlay.show");
+    const open = document.querySelector(".overlay.show:not(#loginOverlay)");
     if (open) open.classList.remove("show");
     else if (ui.sel) { ui.sel = null; refresh(); }
     return;
@@ -592,13 +596,184 @@ function stepRoom(dir) {
 
 window.addEventListener("resize", () => breweryView.resize());
 
-// ---------- 저장 / 알림 ----------
-let saveTimer = 0;
-function scheduleSave() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => game.save(), 400);
+// ---------- 저장 ----------
+// 이 기기에 바로 저장하고(0.4초 뒤), 서버에는 최대 20초에 한 번 + 방 이동·창 닫기 때 저장.
+const CLOUD_EVERY_MS = 20000;
+const localKey = () => `witch-potion-save:${account.id}`;
+const pwKey = () => `witch-potion-pw:${account.id}`;
+let saveTimer = 0, cloudTimer = 0, lastCloud = 0, cloudDirty = false, lastSavedAt = 0, cloudError = false;
+
+function readLocal() {
+  try { const raw = localStorage.getItem(localKey()); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
-window.addEventListener("beforeunload", () => game.save());
+
+function writeLocal() {
+  if (!account) return null;
+  const rec = { data: encodeSave(game.s), updatedAt: Date.now() };
+  try { localStorage.setItem(localKey(), JSON.stringify(rec)); } catch { /* 저장 공간 부족 등 */ }
+  return rec;
+}
+
+async function flushCloud() {
+  if (!account || !cloudDirty) return;
+  clearTimeout(cloudTimer); cloudTimer = 0;
+  const rec = writeLocal();
+  cloudDirty = false;
+  lastCloud = Date.now();
+  try {
+    await cloud.writeSave(account, rec.data, rec.updatedAt);
+    lastSavedAt = rec.updatedAt; cloudError = false;
+  } catch (e) {
+    cloudDirty = true; cloudError = true; // 다음에 다시 시도
+    console.warn("서버 저장 실패", e);
+  }
+  renderAccount();
+}
+
+function scheduleSave() {
+  if (!account) return;
+  cloudDirty = true;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(writeLocal, 400);
+  if (!cloudTimer) cloudTimer = setTimeout(flushCloud, Math.max(0, lastCloud + CLOUD_EVERY_MS - Date.now()));
+}
+
+function saveNow(force = false) {
+  if (!account) return;
+  if (force) cloudDirty = true;
+  writeLocal();
+  flushCloud();
+}
+
+function saveOnExit() {
+  if (!account) return;
+  const rec = writeLocal();
+  if (cloudDirty && rec) { cloud.writeSaveOnExit(account, rec.data, rec.updatedAt); cloudDirty = false; }
+}
+window.addEventListener("pagehide", saveOnExit);
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") saveOnExit(); });
+
+// ---------- 계정 ----------
+function startGame(g) {
+  game = g;
+  bindGame();
+  ui.sel = null; ui.shelf = null; ui.sorterDue = 0; mountedRoom = null;
+  refresh();
+}
+
+/** 로그인한 계정의 세이브 불러오기: 서버와 이 기기 중 최신 것. 둘 다 없으면 예전(계정 없던 시절) 세이브 → 새 게임 */
+async function enterAccount(acc) {
+  account = acc;
+  let server = null, serverFailed = false;
+  try { server = await cloud.loadSave(); } catch (e) { serverFailed = true; console.warn(e); }
+  const local = readLocal();
+  let rec = [server, local].filter(Boolean).sort((a, b) => b.updatedAt - a.updatedAt)[0] || null;
+  let isNew = false;
+  if (!rec) {
+    let legacy = null;
+    try { legacy = JSON.parse(localStorage.getItem(SAVE_KEY) || "null"); } catch { /* 무시 */ }
+    if (legacy?.v === 1) {
+      rec = { data: legacy, updatedAt: Date.now() };
+      try { localStorage.removeItem(SAVE_KEY); } catch { /* 무시 */ }
+    }
+  }
+  const state = rec ? decodeSave(rec.data) : null;
+  if (!state) isNew = true;
+  startGame(new Game(state || newGameState()));
+  lastSavedAt = server?.updatedAt || 0;
+  closeOverlay("#loginOverlay");
+  saveNow(true); // 서버에 최신본 올려 두기 (새 계정이면 첫 세이브)
+  if (serverFailed) toast("서버에서 불러오지 못해서 이 기기에 저장된 진행으로 시작했어요.");
+  else if (game.skillsReset) toast("레벨이 낮아져서 스킬을 처음 상태로 되돌리고 포인트를 돌려드렸어요.");
+  if (isNew) showIntro();
+}
+
+function showLogin() {
+  account = null;
+  document.querySelectorAll(".overlay.show").forEach((o) => o.classList.remove("show"));
+  $("#loginError").textContent = "";
+  $("#loginPw").value = ""; $("#loginPw2").value = "";
+  openOverlay("#loginOverlay");
+  $("#loginNick").focus();
+}
+
+let loginMode = "login";
+function setLoginMode(mode) {
+  loginMode = mode;
+  $("#loginForm").classList.toggle("signup", mode === "signup");
+  document.querySelectorAll(".login-tabs .tab").forEach((t) => t.classList.toggle("active", t.dataset.mode === mode));
+  $("#btnLoginSubmit").textContent = mode === "signup" ? "가입하고 시작" : "로그인";
+  $("#loginPw").autocomplete = mode === "signup" ? "new-password" : "current-password";
+  $("#loginError").textContent = "";
+}
+document.querySelectorAll(".login-tabs .tab").forEach((t) => t.addEventListener("click", () => setLoginMode(t.dataset.mode)));
+$("#loginRule").textContent = `${cloud.NICK_RULE} 비밀번호는 ${cloud.PW_MIN}자 이상.`;
+$("#btnLoginPwToggle").addEventListener("click", () => {
+  const show = $("#loginPw").type === "password";
+  $("#loginPw").type = $("#loginPw2").type = show ? "text" : "password";
+  $("#btnLoginPwToggle").textContent = show ? "숨기기" : "보이기";
+});
+
+$("#loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const nick = $("#loginNick").value.trim();
+  const pw = $("#loginPw").value;
+  const err = (m) => { $("#loginError").textContent = m; };
+  if (!cloud.checkNickname(nick)) return err(cloud.NICK_RULE);
+  if (pw.length < cloud.PW_MIN) return err(`비밀번호는 ${cloud.PW_MIN}자 이상이어야 해요.`);
+  if (loginMode === "signup" && pw !== $("#loginPw2").value) return err("비밀번호 확인이 달라요.");
+  const btn = $("#btnLoginSubmit");
+  btn.disabled = true; err("");
+  try {
+    const acc = loginMode === "signup" ? await cloud.signUp(nick, pw) : await cloud.signIn(nick, pw);
+    try { localStorage.setItem(`witch-potion-pw:${acc.id}`, pw); } catch { /* 무시 */ }
+    await enterAccount(acc);
+  } catch (ex) {
+    err(ex.message);
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderAccount() {
+  if (!account) return;
+  $("#accNick").textContent = account.nickname;
+  $("#accCreated").textContent = account.createdAt ? new Date(account.createdAt).toLocaleDateString("ko-KR") : "-";
+  let pw = null;
+  try { pw = localStorage.getItem(pwKey()); } catch { /* 무시 */ }
+  const shown = $("#btnPwToggle").dataset.shown === "1";
+  $("#accPw").textContent = pw == null ? "(이 기기에 기억된 비밀번호 없음)" : shown ? pw : "•".repeat(Math.max(6, pw.length));
+  $("#btnPwToggle").hidden = pw == null;
+  $("#btnPwToggle").textContent = shown ? "숨기기" : "보이기";
+  $("#accSaved").textContent = cloudError ? "서버 저장 실패 (이 기기에는 저장됨, 다시 시도 중)"
+    : lastSavedAt ? `서버에 저장됨 · ${new Date(lastSavedAt).toLocaleTimeString("ko-KR")}` : "-";
+}
+$("#btnPwToggle").addEventListener("click", () => {
+  const b = $("#btnPwToggle");
+  b.dataset.shown = b.dataset.shown === "1" ? "0" : "1";
+  renderAccount();
+});
+
+$("#btnLogout").addEventListener("click", async () => {
+  await flushCloud();
+  await cloud.signOut();
+  showLogin();
+});
+
+$("#btnDeleteAccount").addEventListener("click", async () => {
+  const typed = prompt(`계정과 모든 진행 상황이 영구히 삭제돼요.\n삭제하려면 닉네임(${account.nickname})을 입력하세요.`);
+  if (typed == null) return;
+  if (typed.trim() !== account.nickname) { toast("닉네임이 달라서 삭제하지 않았어요."); return; }
+  try {
+    await cloud.deleteAccount();
+    try { localStorage.removeItem(localKey()); localStorage.removeItem(pwKey()); } catch { /* 무시 */ }
+    clearTimeout(cloudTimer); cloudTimer = 0; cloudDirty = false;
+    showLogin();
+    toast("계정을 삭제했어요.");
+  } catch (ex) {
+    toast(ex.message);
+  }
+});
 
 function bindGame() {
   game.onChange((info) => {
@@ -626,21 +801,22 @@ function bindGame() {
       toast(msg);
     }
     scheduleSave();
+    if (info.type === "room") flushCloud();
     refresh();
   });
 }
 
 function showIntro() { openOverlay("#introOverlay"); }
 
+// ---------- 시작 ----------
 bindGame();
 refresh();
-if (game.skillsReset) toast("레벨이 낮아져서 스킬을 처음 상태로 되돌리고 포인트를 돌려드렸어요.");
-try {
-  if (!localStorage.getItem("witch-potion-intro")) {
-    showIntro();
-    localStorage.setItem("witch-potion-intro", "1");
-  }
-} catch { showIntro(); }
+(async () => {
+  let acc = null;
+  try { acc = await cloud.getAccount(); } catch (e) { console.warn(e); }
+  if (acc) await enterAccount(acc);
+  else showLogin();
+})();
 
 // 디버그/테스트용
 window.__game = () => game;

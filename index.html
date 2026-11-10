@@ -60,10 +60,47 @@
   <!-- 메뉴 -->
   <div class="overlay" id="menuOverlay">
     <div class="panel menu-panel">
-      <div class="panel-head"><h2>메뉴</h2><button class="btn icon" data-close>✕</button></div>
-      <p class="muted">진행 상황은 이 브라우저에 자동 저장돼요.</p>
-      <button class="btn danger" id="btnNewGame">새 게임 시작</button>
+      <div class="panel-head"><h2>계정</h2><button class="btn icon" data-close>✕</button></div>
+      <dl class="account-info">
+        <dt>닉네임</dt><dd id="accNick">-</dd>
+        <dt>가입일</dt><dd id="accCreated">-</dd>
+        <dt>비밀번호</dt>
+        <dd class="pw-row"><span id="accPw">••••••</span> <button class="btn small" id="btnPwToggle">보이기</button></dd>
+        <dt>저장</dt><dd id="accSaved" class="muted">-</dd>
+      </dl>
+      <p class="muted small-note" id="accPwNote">비밀번호는 이 기기에서 로그인할 때 기억해 둔 것만 보여요.</p>
+      <div class="menu-actions">
+        <button class="btn" id="btnLogout">로그아웃</button>
+        <button class="btn danger" id="btnNewGame">새 게임 시작 (리셋)</button>
+        <button class="btn danger" id="btnDeleteAccount">계정 삭제</button>
+      </div>
     </div>
+  </div>
+
+  <!-- 로그인 / 회원가입 (로그인 전에는 닫을 수 없음) -->
+  <div class="overlay" id="loginOverlay">
+    <form class="panel login-panel" id="loginForm" autocomplete="on">
+      <h2>마녀의 물약 정리</h2>
+      <div class="login-tabs">
+        <button type="button" class="tab active" data-mode="login">로그인</button>
+        <button type="button" class="tab" data-mode="signup">회원가입</button>
+      </div>
+      <label>닉네임
+        <input id="loginNick" name="username" autocomplete="username" maxlength="10" required />
+      </label>
+      <label>비밀번호
+        <span class="pw-field">
+          <input id="loginPw" name="password" type="password" autocomplete="current-password" required />
+          <button type="button" class="btn small" id="btnLoginPwToggle">보이기</button>
+        </span>
+      </label>
+      <label class="signup-only">비밀번호 확인
+        <input id="loginPw2" type="password" autocomplete="new-password" />
+      </label>
+      <p class="muted small-note signup-only" id="loginRule"></p>
+      <p class="login-error" id="loginError"></p>
+      <button type="submit" class="btn primary" id="btnLoginSubmit">로그인</button>
+    </form>
   </div>
 
   <!-- 시작 안내 -->
@@ -82,6 +119,7 @@
   </div>
 
   <script src="js/vendor/matter.min.js"></script>
+  <script src="js/vendor/supabase.js"></script>
   <script type="module" src="js/main.js"></script>
 </body>
 </html>
