@@ -2,7 +2,7 @@
 import {
   COLORS, DAYS, UNITS_PER_BOTTLE, BOTTLES_PER_LABEL, SHELF_ROWS, BREWERY_COUNT,
   ROW_XP, levelFromXp, xpForLevel, TEST_START_LEVEL, SKILLS, SKILL_COSTS, SKILL_MAX,
-  MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, ZONE3_LEVEL, ZONE4_LEVEL, SAVE_KEY,
+  MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, SORTER_INJECTORS, ZONE3_LEVEL, ZONE4_LEVEL, SAVE_KEY,
 } from "./config.js";
 
 const NC = COLORS.length;
@@ -70,6 +70,7 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
     flasks: flaskSlots,
     rack: new Array(MAX_RACK).fill(null),
     drums: Array.from({ length: MAX_DRUMS }, () => ({ u: [] })),
+    sorter: { inj: new Array(SORTER_INJECTORS).fill(null), store: [] },
     shelves: Array.from({ length: NC }, () => Array.from({ length: SHELF_ROWS }, () => new Array(ND).fill(null))),
     lockedRows: Array.from({ length: NC }, () => new Array(SHELF_ROWS).fill(false)),
     xp: 0,
@@ -91,6 +92,7 @@ export class Game {
     // 임시 테스트: 시작 레벨 끌어올리기
     this.s.xp = Math.max(this.s.xp, xpForLevel(TEST_START_LEVEL));
     this.compactInventory();
+    if (!this.s.sorter) this.s.sorter = { inj: new Array(SORTER_INJECTORS).fill(null), store: [] };
     if (!this.s.floor && this.s.piles) {
       this.s.floor = this.s.piles.map((cols) => cols.flat().map((id) => ({ id, x: null, y: null, a: 0 })));
       delete this.s.piles;
@@ -148,6 +150,7 @@ export class Game {
       case "flask": return loc.i < this.flaskCount;
       case "rack": return loc.i < this.rackCount;
       case "drum": return loc.i < this.drumCount;
+      case "inj": return this.zoneUnlocked(4) && loc.i < SORTER_INJECTORS;
       case "shelf": return true;
       default: return false;
     }
@@ -158,6 +161,7 @@ export class Game {
       case "inv": return this.s.inv[loc.i];
       case "flask": return this.s.flasks[loc.i];
       case "rack": return this.s.rack[loc.i];
+      case "inj": return this.s.sorter.inj[loc.i];
       case "shelf": return this.s.shelves[loc.c][loc.r][loc.d];
       default: return null;
     }
@@ -168,6 +172,7 @@ export class Game {
       case "inv": this.s.inv[loc.i] = id; break;
       case "flask": this.s.flasks[loc.i] = id; break;
       case "rack": this.s.rack[loc.i] = id; break;
+      case "inj": this.s.sorter.inj[loc.i] = id; break;
       case "shelf": this.s.shelves[loc.c][loc.r][loc.d] = id; break;
       default: throw new Error("bad loc " + loc.a);
     }
@@ -217,6 +222,7 @@ export class Game {
       case "inv": return true;
       case "flask": return it.t === "f";
       case "rack": return it.t === "b";
+      case "inj": return true; // 약병, 플라스크 모두
       case "shelf": return it.t === "b" && this.isComplete(it) && !this.s.lockedRows[loc.c][loc.r];
       default: return false;
     }
@@ -256,6 +262,47 @@ export class Game {
       if (this.accepts(loc, id)) return loc;
     }
     return null;
+  }
+
+  // ----- 분류기 (4구역) -----
+  get sorterCap() { return this.skillValue("sorterCap"); }
+
+  /** 밸브: 주입기에 꽂힌 병의 내용물을 전부(위에서부터) 저장 공간으로. 꽉 차면 멈춤 */
+  sorterInject(i) {
+    const it = this.item(this.s.sorter.inj[i]);
+    if (!it || !it.u.length) return 0;
+    const st = this.s.sorter.store;
+    let n = 0;
+    while (it.u.length && st.length < this.sorterCap) { st.push(it.u.pop()); n++; }
+    if (n) this.changed({ type: "sorterInject", i, n });
+    return n;
+  }
+
+  /** 주입기의 병이 원하는 색: 맨 위 색, 비어 있으면 약병은 라벨 색, 빈 플라스크는 없음 */
+  sorterWant(it) {
+    if (!it || it.u.length >= UNITS_PER_BOTTLE) return null;
+    if (it.u.length) return it.u[it.u.length - 1];
+    return it.t === "b" ? it.c : null;
+  }
+
+  /** 병을 살펴보고 원하는 색을 가득 찰 때까지(있는 만큼) 채워 줌 */
+  sorterDispense() {
+    const st = this.s.sorter.store;
+    let total = 0;
+    this.s.sorter.inj.forEach((id) => {
+      const it = this.item(id);
+      const c = this.sorterWant(it);
+      if (c == null) return;
+      while (it.u.length < UNITS_PER_BOTTLE) {
+        const k = st.lastIndexOf(c);
+        if (k < 0) break;
+        st.splice(k, 1);
+        it.u.push(c);
+        total++;
+      }
+    });
+    if (total) this.changed({ type: "sorterDispense", n: total });
+    return total;
   }
 
   // ----- 조제실 바닥 -----

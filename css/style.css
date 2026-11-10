@@ -547,3 +547,40 @@ b { font-weight: 700; }
 .skill-btn.active { border-color: var(--gold); box-shadow: 0 0 12px rgba(232, 196, 106, 0.4); }
 .skill-btn.active .cd { background: var(--gold); }
 .skill-btn.cooling { opacity: 0.6; }
+
+/* ---------- 분류기 (4구역) ---------- */
+.sorter { display: flex; flex-direction: column; align-items: flex-start; gap: 0; }
+.sorter-tank {
+  width: 100%;
+  max-width: 460px;
+  padding: 10px 12px 12px;
+  border-radius: 16px 16px 10px 10px;
+  border: 2px solid #8f7bc4;
+  background: linear-gradient(#2c2350, #1f1838);
+  box-shadow: inset 0 0 18px rgba(160, 120, 255, 0.25);
+}
+.sorter-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12.5px; color: var(--muted); margin-bottom: 8px; }
+.sorter-timer { flex: 0 0 120px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
+.sorter-timer i { display: block; height: 100%; width: 0; background: var(--gold); }
+.sorter-table { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
+.sorter-table i { height: 14px; border-radius: 3px; background: rgba(255, 255, 255, 0.06); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08); }
+.sorter-table i.on { background: var(--c); box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.2); }
+.injectors { display: flex; gap: 14px; padding-left: 18px; }
+.injector { display: flex; flex-direction: column; align-items: center; }
+.injector .pipe { width: 8px; height: 12px; background: #8f7bc4; }
+.valve {
+  appearance: none;
+  width: 30px;
+  height: 22px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  border: 1px solid #c8b48a;
+  background: #6b4f2a;
+  color: #f3e3bd;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.valve:hover:not(:disabled) { background: #8a6634; }
+.valve:active:not(:disabled) { transform: rotate(90deg); }
+.valve:disabled { opacity: 0.35; cursor: default; }

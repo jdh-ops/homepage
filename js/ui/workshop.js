@@ -1,5 +1,5 @@
 // 작업실: 십자로 나뉜 4구역.
-import { COLORS, ZONE3_LEVEL, ZONE4_LEVEL, MAX_FLASKS, MAX_RACK } from "../config.js";
+import { COLORS, ZONE3_LEVEL, ZONE4_LEVEL, MAX_FLASKS, MAX_RACK, SORTER_INJECTORS } from "../config.js";
 import { h, vial, locKey } from "./common.js";
 
 function slot(ctx, loc) {
@@ -27,6 +27,31 @@ function drum(ctx, i) {
   return el;
 }
 
+function sorter(ctx) {
+  const g = ctx.game;
+  const cap = g.sorterCap;
+  const st = g.s.sorter.store;
+  // 저장 공간: 표처럼 12칸씩 줄
+  const table = h("div", { class: "sorter-table" });
+  for (let k = 0; k < cap; k++) {
+    table.append(h("i", { class: k < st.length ? "on" : "", "--c": k < st.length ? COLORS[st[k]].hex : null }));
+  }
+  const injectors = Array.from({ length: SORTER_INJECTORS }, (_, i) => {
+    const loc = { a: "inj", i };
+    const id = g.itemAt(loc);
+    const valve = h("button", { class: "valve", "data-valve": i, title: "밸브: 병의 내용물을 분류기에 넣기" }, h("span", { text: "⊗" }));
+    if (id == null || !g.item(id).u.length) valve.disabled = true;
+    return h("div", { class: "injector" }, h("div", { class: "pipe" }), valve, slot(ctx, loc));
+  });
+  return h("div", { class: "sorter" },
+    h("div", { class: "sorter-tank" },
+      h("div", { class: "sorter-head" },
+        h("span", { text: `저장 ${st.length}/${cap}` }),
+        h("span", { class: "sorter-timer" }, h("i"))),
+      table),
+    h("div", { class: "injectors" }, injectors));
+}
+
 function locked(text) {
   return h("div", { class: "zone-locked" }, h("div", { class: "lock-icon", text: "🔒" }), h("div", { text }));
 }
@@ -50,7 +75,7 @@ export function renderWorkshop(ctx) {
   }
 
   const z4 = h("section", { class: "zone z4" }, h("h3", { text: "4구역 · 마법의 분류기" }));
-  if (g.zoneUnlocked(4)) z4.append(locked("분류기는 다음 단계에서 만들어요"));
+  if (g.zoneUnlocked(4)) z4.append(sorter(ctx));
   else z4.append(locked(`레벨 ${ZONE4_LEVEL}에 열려요`));
 
   return h("div", { class: "room workshop" }, z1, z2, z3, z4, h("div", { class: "cross-v" }), h("div", { class: "cross-h" }));

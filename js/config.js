@@ -80,6 +80,8 @@ export const MAX_FLASKS = 30;
 export const MAX_RACK = 30;
 export const MAX_DRUMS = 6;
 export const MAX_INVENTORY = 12;
+export const SORTER_INJECTORS = 5;
+export const SORTER_IDLE_MS = 2000; // 밸브를 이만큼 안 누르면 분류기가 병을 채워 줌
 
 // ---------- 붓기 시간 (ms) ----------
 export const POUR_BASE_MS = 300;

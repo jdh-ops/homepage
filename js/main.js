@@ -1,6 +1,6 @@
 import {
   COLORS, DAYS, SKILLS, SKILL_MAX, MAX_LEVEL, xpForLevel, ZONE3_LEVEL, ZONE4_LEVEL,
-  POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT,
+  POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
 import { $, h, vial, locKey, parseLoc, toast, delay } from "./ui/common.js";
@@ -16,6 +16,7 @@ const ui = {
   pouring: new Set(), // 붓는 중인 칸 key
   shelf: null,        // 크게 보고 있는 선반 색 번호 (null = 전체)
   pourMs: 0,
+  sorterDue: 0,       // 분류기가 병을 채워 줄 시각 (0 = 대기 없음)
 };
 
 const ROOM_NAMES = {
@@ -128,7 +129,7 @@ function renderInfo() {
   const room = game.s.room;
   let help = "";
   if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
-  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제).";
+  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제). 분류기: 병을 우클릭으로 고른 뒤 빈 주입기를 클릭해 꽂고, 밸브를 눌러 내용물을 넣어요. 2초간 밸브를 안 누르면 병의 맨 위 색을 채워 줘요.";
   else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 클릭하면 인벤토리로 돌아와요 (완성된 행은 제외).";
   const sel = describeSel();
   $("#info").replaceChildren(
@@ -181,7 +182,7 @@ function onLoc(loc) {
   if (ui.busy) return;
   const sel = ui.sel;
   // 작업실: 클릭 = 인벤토리 ↔ 1·2구역 이동 (선택은 우클릭)
-  if (game.s.room === "workshop" && (loc.a === "inv" || loc.a === "flask" || loc.a === "rack") && locHas(loc)) {
+  if (game.s.room === "workshop" && ["inv", "flask", "rack", "inj"].includes(loc.a) && locHas(loc)) {
     quickMove(loc);
     return;
   }
@@ -267,6 +268,8 @@ function quickMove(loc) {
 
 // 칸 클릭 (작업실, 선반, 인벤토리)
 document.addEventListener("click", (e) => {
+  const valve = e.target.closest("[data-valve]");
+  if (valve) { openValve(+valve.dataset.valve); return; }
   const el = e.target.closest("[data-loc]");
   if (el) { onLoc(parseLoc(el.dataset.loc)); return; }
   // 빈 곳 클릭 → 선택 해제 (조제실 바닥은 내려놓기에 쓰므로 제외)
@@ -328,6 +331,28 @@ function renderSkills() {
       pips, btn);
   });
   $("#skillList").replaceChildren(...list);
+}
+
+// ---------- 분류기 ----------
+function armSorter() { ui.sorterDue = performance.now() + SORTER_IDLE_MS; }
+
+function openValve(i) {
+  if (ui.busy) return;
+  const it = game.item(game.itemAt({ a: "inj", i }));
+  if (!it?.u.length) return;
+  if (game.s.sorter.store.length >= game.sorterCap) { toast("분류기 저장 공간이 가득 찼어요."); armSorter(); return; }
+  game.sorterInject(i);
+  armSorter();
+}
+
+function sorterTick(now) {
+  const bar = $("#view .sorter-timer > i");
+  if (bar) bar.style.width = ui.sorterDue ? `${Math.max(0, (ui.sorterDue - now) / SORTER_IDLE_MS) * 100}%` : "0%";
+  if (ui.sorterDue && now >= ui.sorterDue && !ui.busy) {
+    ui.sorterDue = 0;
+    const n = game.sorterDispense();
+    if (n && game.s.room === "workshop") toast(`분류기가 병에 ${n}칸을 채웠어요.`);
+  }
 }
 
 // ---------- 사용 스킬 (1: 부름, 2: 자동 진열) ----------
@@ -400,6 +425,7 @@ function renderSkillBar() {
 setInterval(() => {
   const now = performance.now();
   renderSkillBar();
+  sorterTick(now);
   if (now < skillRt.autoUntil && !ui.busy && game.s.room === "shelves" && ui.shelf != null && now - skillRt.lastTick > 300) {
     skillRt.lastTick = now;
     const dst = game.autoShelveOne(ui.shelf);
@@ -500,6 +526,7 @@ window.addEventListener("beforeunload", () => game.save());
 
 function bindGame() {
   game.onChange((info) => {
+    if (info.type === "move" && info.dst.a === "inj") armSorter(); // 병을 꽂으면 2초 뒤 살펴봄
     // 인벤토리가 앞으로 당겨졌으면 선택한 칸 번호도 맞춤
     if (info.invMap && ui.sel?.a === "inv") {
       const count = game.s.inv.filter((x) => x != null).length;
