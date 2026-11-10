@@ -1,5 +1,5 @@
 // 작업실: 십자로 나뉜 4구역.
-import { COLORS, ZONE3_LEVEL, ZONE4_LEVEL, MAX_FLASKS, MAX_RACK, SORTER_INJECTORS } from "../config.js";
+import { COLORS, ZONE3_LEVEL, ZONE4_LEVEL, MAX_FLASKS, MAX_RACK } from "../config.js";
 import { h, vial, locKey } from "./common.js";
 
 function slot(ctx, loc) {
@@ -20,8 +20,13 @@ function drum(ctx, i) {
   // 칸 높이는 물통 최대 크기 기준 → 확장하면 물통이 길어짐
   body.style.setProperty("--cap", cap);
   for (let k = 0; k < d.u.length; k++) body.append(h("div", { class: "drum-seg", "--c": COLORS[d.u[k]].hex }));
-  const el = h("div", { class: "drum", "data-loc": locKey(loc) },
-    h("div", { class: "drum-rim" }), body,
+  const el = h("div", { class: "drum", "data-drum": i },
+    h("div", { class: "drum-rim", "data-drum-in": i, title: "우클릭: 선택한 병의 내용물을 물통에 넣기" }),
+    h("div", { class: "drum-body-wrap" }, body,
+      h("div", { class: "drum-zone in", "data-drum-in": i, title: "우클릭: 선택한 병의 내용물을 물통에 넣기" }),
+      h("div", { class: "drum-zone out", "data-drum-out": i, title: "우클릭: 물통에서 선택한 병으로 빼내기" }),
+      h("div", { class: "tap", "data-drum-out": i, title: "수도꼭지 — 우클릭: 물통에서 선택한 병으로 빼내기" },
+        h("i", { class: "tap-handle" }), h("i", { class: "tap-spout" }))),
     h("div", { class: "drum-count", text: `${d.u.length}/${cap}` }));
   ctx.decorate(el, loc);
   return el;
@@ -36,7 +41,7 @@ function sorter(ctx) {
   for (let k = 0; k < cap; k++) {
     table.append(h("i", { class: k < st.length ? "on" : "", "--c": k < st.length ? COLORS[st[k]].hex : null }));
   }
-  const injectors = Array.from({ length: SORTER_INJECTORS }, (_, i) => {
+  const injectors = Array.from({ length: g.sorterInjectors }, (_, i) => {
     const loc = { a: "inj", i };
     const id = g.itemAt(loc);
     const valve = h("button", { class: "valve", "data-valve": i, title: "밸브: 병의 내용물을 분류기에 넣기" }, h("span", { text: "⊗" }));

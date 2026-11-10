@@ -93,6 +93,13 @@ export class Game {
     this.s.xp = Math.max(this.s.xp, xpForLevel(TEST_START_LEVEL));
     this.compactInventory();
     if (!this.s.sorter) this.s.sorter = { inj: new Array(SORTER_INJECTORS).fill(null), store: [] };
+    // 잠긴 주입기에 꽂혀 있던 병은 인벤토리나 거치대/플라스크 자리로
+    this.s.sorter.inj.forEach((id, i) => {
+      if (id == null || i < this.sorterInjectors) return;
+      const it = this.item(id);
+      const dst = this.firstFree("inv", id) || this.firstFree(it.t === "f" ? "flask" : "rack", id);
+      if (dst) { this.s.sorter.inj[i] = null; this.setAt(dst, id); }
+    });
     if (!this.s.floor && this.s.piles) {
       this.s.floor = this.s.piles.map((cols) => cols.flat().map((id) => ({ id, x: null, y: null, a: 0 })));
       delete this.s.piles;
@@ -150,7 +157,7 @@ export class Game {
       case "flask": return loc.i < this.flaskCount;
       case "rack": return loc.i < this.rackCount;
       case "drum": return loc.i < this.drumCount;
-      case "inj": return this.zoneUnlocked(4) && loc.i < SORTER_INJECTORS;
+      case "inj": return this.zoneUnlocked(4) && loc.i < this.sorterInjectors;
       case "shelf": return true;
       default: return false;
     }
@@ -266,6 +273,7 @@ export class Game {
 
   // ----- 분류기 (4구역) -----
   get sorterCap() { return this.skillValue("sorterCap"); }
+  get sorterInjectors() { return this.skillDef("sorterCap").extra.values[this.s.skills.sorterCap - 1]; }
 
   /** 밸브: 주입기에 꽂힌 병의 내용물을 전부(위에서부터) 저장 공간으로. 꽉 차면 멈춤 */
   sorterInject(i) {
@@ -278,11 +286,12 @@ export class Game {
     return n;
   }
 
-  /** 주입기의 병이 원하는 색: 맨 위 색, 비어 있으면 약병은 라벨 색, 빈 플라스크는 없음 */
+  /** 주입기의 병이 원하는 색: 맨 위 색, 비어 있으면 약병은 라벨 색, 빈 플라스크는 저장 공간 첫 칸의 색 */
   sorterWant(it) {
     if (!it || it.u.length >= UNITS_PER_BOTTLE) return null;
     if (it.u.length) return it.u[it.u.length - 1];
-    return it.t === "b" ? it.c : null;
+    if (it.t === "b") return it.c;
+    return this.s.sorter.store[0] ?? null;
   }
 
   /** 병을 살펴보고 원하는 색을 가득 찰 때까지(있는 만큼) 채워 줌 */

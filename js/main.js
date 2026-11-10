@@ -129,7 +129,7 @@ function renderInfo() {
   const room = game.s.room;
   let help = "";
   if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
-  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제). 분류기: 병을 우클릭으로 고른 뒤 빈 주입기를 클릭해 꽂고, 밸브를 눌러 내용물을 넣어요. 2초간 밸브를 안 누르면 병의 맨 위 색을 채워 줘요.";
+  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제). 물통: 병을 고른 뒤 물통 위쪽 우클릭 = 넣기, 아래 수도꼭지 우클릭 = 빼기. 분류기: 고른 병을 빈 주입기에 클릭해 꽂고 밸브로 내용물을 넣어요. 1초간 밸브를 안 누르면 병의 맨 위 색을 채워 줘요.";
   else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 클릭하면 인벤토리로 돌아와요 (완성된 행은 제외).";
   const sel = describeSel();
   $("#info").replaceChildren(
@@ -165,12 +165,12 @@ function moveFailReason(src, dst) {
   return "옮길 수 없어요.";
 }
 
-async function doPour(src, dst, n) {
+async function doPour(src, dst, n, keepSel = src) {
   const factor = src.a === "inv" && dst.a === "inv" ? INVENTORY_POUR_FACTOR : 1;
   ui.pourMs = (POUR_BASE_MS + POUR_PER_UNIT_MS * n) * factor;
   ui.busy = true;
   ui.pouring = new Set([locKey(src), locKey(dst)]);
-  ui.sel = src; // 부은 뒤에도 선택 유지
+  ui.sel = keepSel; // 부은 뒤에도 선택 유지
   refresh();
   await delay(ui.pourMs);
   ui.pouring.clear();
@@ -278,9 +278,33 @@ document.addEventListener("click", (e) => {
 document.addEventListener("contextmenu", (e) => {
   if (!e.target.closest("#view, .inventory")) return;
   e.preventDefault(); // 게임 화면에서는 브라우저 메뉴 대신 붓기
+  const drumIn = e.target.closest("[data-drum-in]");
+  const drumOut = e.target.closest("[data-drum-out]");
+  if (drumIn) { drumPour(+drumIn.dataset.drumIn, "in"); return; }
+  if (drumOut) { drumPour(+drumOut.dataset.drumOut, "out"); return; }
   const el = e.target.closest("[data-loc]");
   if (el) pourInto(parseLoc(el.dataset.loc));
 });
+
+/** 물통: 위쪽 우클릭 = 선택한 병 → 물통, 아래쪽(수도꼭지) 우클릭 = 물통 → 선택한 병 */
+function drumPour(i, dir) {
+  if (ui.busy) return;
+  const drum = { a: "drum", i };
+  const sel = ui.sel;
+  if (!sel || sel.a === "drum" || sel.a === "shelf" || game.itemAt(sel) == null) {
+    toast("먼저 병을 우클릭으로 선택하세요.");
+    return;
+  }
+  if (dir === "in") {
+    const n = game.pourAmount(sel, drum);
+    if (n) doPour(sel, drum, n);
+    else toast(pourFailReason(sel, drum));
+  } else {
+    const n = game.pourAmount(drum, sel);
+    if (n) doPour(drum, sel, n, sel);
+    else toast(!game.s.drums[i].u.length ? "물통이 비어 있어요." : "병이 가득 차 있어요.");
+  }
+}
 
 // ---------- 지도 ----------
 function renderMap() {
@@ -312,7 +336,7 @@ function renderSkills() {
     const lv = game.s.skills[s.id];
     const unlocked = game.skillUnlocked(s.id);
     const cost = game.upgradeCost(s.id);
-    const val = (l) => `${s.values[l - 1]}${s.unit}`;
+    const val = (l) => `${s.values[l - 1]}${s.unit}` + (s.extra ? ` · ${s.extra.name} ${s.extra.values[l - 1]}${s.extra.unit}` : "");
     const cdText = s.cooldown ? ` · 대기 ${s.cooldown[lv - 1]}초` : "";
     const btn = h("button", { class: "btn primary small" });
     if (!unlocked) { btn.textContent = `Lv ${s.unlock}에 해금`; btn.disabled = true; }

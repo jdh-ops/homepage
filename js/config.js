@@ -63,7 +63,8 @@ export const SKILLS = [
   { id: "rack", name: "거치대", desc: "작업실 2구역 거치대 수", values: [5, 10, 15, 22, 30], unit: "칸", unlock: 1 },
   { id: "drumCount", name: "물통 개수", desc: "작업실 3구역 물통 수", values: [2, 3, 4, 5, 6], unit: "개", unlock: ZONE3_LEVEL },
   { id: "drumSize", name: "물통 크기", desc: "물통 하나에 담기는 칸 수", values: [12, 17, 22, 27, 32], unit: "칸", unlock: ZONE3_LEVEL },
-  { id: "sorterCap", name: "분류기 용량", desc: "분류기 저장 칸 수", values: [12, 24, 36, 48, 60], unit: "칸", unlock: ZONE4_LEVEL },
+  { id: "sorterCap", name: "분류기", desc: "분류기 저장 칸 수와 주입기(밸브) 수", values: [12, 24, 36, 48, 60], unit: "칸",
+    extra: { name: "주입기", values: [3, 3, 4, 4, 5], unit: "개" }, unlock: ZONE4_LEVEL },
   {
     id: "summon", name: "부름", active: true, unlock: 1,
     desc: "들고 있는 약병과 같은 라벨 색의 약병을 같은 방 바닥에서 인벤토리로 불러옴",
@@ -81,7 +82,7 @@ export const MAX_RACK = 30;
 export const MAX_DRUMS = 6;
 export const MAX_INVENTORY = 12;
 export const SORTER_INJECTORS = 5;
-export const SORTER_IDLE_MS = 2000; // 밸브를 이만큼 안 누르면 분류기가 병을 채워 줌
+export const SORTER_IDLE_MS = 1000; // 밸브를 이만큼 안 누르면 분류기가 병을 채워 줌
 
 // ---------- 붓기 시간 (ms) ----------
 export const POUR_BASE_MS = 300;
