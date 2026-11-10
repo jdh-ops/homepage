@@ -88,6 +88,7 @@ export class Game {
 
   /** 예전 세이브 보정: 열 방식 더미(piles) → 바닥 위치 방식(floor) */
   migrate() {
+    this.compactInventory();
     if (!this.s.floor && this.s.piles) {
       this.s.floor = this.s.piles.map((cols) => cols.flat().map((id) => ({ id, x: null, y: null, a: 0 })));
       delete this.s.piles;
@@ -231,9 +232,19 @@ export class Game {
     this.setAt(src, null);
     this.setAt(dst, id);
     const info = { type: "move", src, dst, id };
+    if (src.a === "inv") info.invMap = this.compactInventory();
     if (dst.a === "shelf") info.row = this.checkRow(dst.c, dst.r);
     this.changed(info);
     return true;
+  }
+
+  /** 인벤토리 빈칸을 없애고 앞으로 당김. 반환: 옛 칸 번호 → 새 칸 번호 */
+  compactInventory() {
+    const map = {};
+    const kept = [];
+    this.s.inv.forEach((id, i) => { if (id != null) { map[i] = kept.length; kept.push(id); } });
+    this.s.inv = this.s.inv.map((_, i) => kept[i] ?? null);
+    return map;
   }
 
   firstFree(area, id) {
@@ -265,7 +276,8 @@ export class Game {
     if (!it || it.t !== "b" || !this.canTake(src)) return false;
     this.setAt(src, null);
     this.s.floor[room].push({ id, x: pos?.x ?? null, y: pos?.y ?? null, a: 0, drop: true });
-    this.changed({ type: "pileDrop", room, id });
+    const invMap = src.a === "inv" ? this.compactInventory() : null;
+    this.changed({ type: "pileDrop", room, id, invMap });
     return true;
   }
 

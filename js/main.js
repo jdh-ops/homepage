@@ -44,7 +44,7 @@ const ctx = {
     if (ui.sel.a !== "inv") { ui.sel = null; refresh(); return; }
     const it = game.item(game.itemAt(ui.sel));
     if (it?.t !== "b") { toast("플라스크는 바닥에 내려놓을 수 없어요."); return; }
-    if (game.dropToPile(ui.sel, room, pos)) ui.sel = null;
+    game.dropToPile(ui.sel, room, pos); // 다음 물약이 같은 자리로 당겨져 선택됨
     refresh();
   },
   openShelf(c) {
@@ -200,7 +200,7 @@ function onLoc(loc) {
   if (!locHas(loc)) {
     if (sel.a === "drum") { toast("물통은 옮길 수 없어요. 빈 병을 골라 물통에서 따라 주세요."); return; }
     if (!game.move(sel, loc)) { toast(moveFailReason(sel, loc)); return; }
-    ui.sel = null;
+    if (sel.a !== "inv") ui.sel = null; // 인벤토리에서 꺼냈으면 같은 자리(=당겨진 다음 물약)가 선택된 채로
     refresh();
     return;
   }
@@ -232,18 +232,13 @@ function discardSelected() {
   const room = game.s.room;
   if (!room.startsWith("brewery") && room !== "workshop") { toast("버리기는 조제실과 작업실에서만 할 수 있어요."); return; }
   const i = ui.sel.i;
+  const id = game.itemAt(ui.sel);
   quickMove(ui.sel);
-  // 버렸으면 다음 물약 자동 선택 (마지막 다음은 처음으로)
-  if (game.itemAt({ a: "inv", i }) == null) {
-    const n = game.invSize;
-    let next = null;
-    for (let k = 1; k <= n; k++) {
-      const j = (i + k) % n;
-      if (game.s.inv[j] != null) { next = j; break; }
-    }
-    ui.sel = next == null ? null : { a: "inv", i: next };
-    refresh();
-  }
+  if (game.s.inv.includes(id)) return; // 못 버림
+  // 뒤 물약이 앞으로 당겨졌으니 같은 자리 = 다음 물약 (마지막이었으면 처음으로)
+  const count = game.s.inv.filter((x) => x != null).length;
+  ui.sel = count ? { a: "inv", i: i < count ? i : 0 } : null;
+  refresh();
 }
 
 function quickMove(loc) {
@@ -505,6 +500,13 @@ window.addEventListener("beforeunload", () => game.save());
 
 function bindGame() {
   game.onChange((info) => {
+    // 인벤토리가 앞으로 당겨졌으면 선택한 칸 번호도 맞춤
+    if (info.invMap && ui.sel?.a === "inv") {
+      const count = game.s.inv.filter((x) => x != null).length;
+      const i = ui.sel.i;
+      const ni = info.invMap[i] ?? (i < count ? i : count ? 0 : null); // 빠진 칸이면 그 자리(=다음 물약)
+      ui.sel = ni == null ? null : { a: "inv", i: ni };
+    }
     if (info.type === "move" && info.row) {
       const { c, r, xp, levelUp } = info.row;
       const lv = game.level;
