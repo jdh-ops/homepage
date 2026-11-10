@@ -25,9 +25,11 @@ export const BOTTLE_H = 46;
 // ---------- 경험치 / 레벨 ----------
 // 선반 한 행(7병)을 오류 없이 채우면 ROW_XP.
 // 전체 210행의 절반(105행)을 채우면 만렙.
-// 레벨업마다 스킬 포인트 1개 → 만렙까지 128포인트 = 스킬 8개 × 16포인트(전부 5레벨).
+// 레벨업마다 스킬 포인트 1개. 만렙까지 받는 포인트로 모든 스킬을 5레벨까지 찍을 수 있게:
+//   처음부터 1레벨인 스킬 3개 × 16포인트 + 0레벨에서 시작하는 스킬 4개 × 17포인트 = 116 → 만렙 117
+//   (스킬 구성이 바뀌면 아래 SKILLS 뒤의 검사가 콘솔에 알려 줌)
 export const ROW_XP = 100;
-export const MAX_LEVEL = 129;
+export const MAX_LEVEL = 117;
 export const MAX_LEVEL_ROWS = 105;
 const TOTAL_XP = ROW_XP * MAX_LEVEL_ROWS;
 const XP_CURVE = 1.4; // 1보다 클수록 뒤로 갈수록 레벨업이 어려워짐
@@ -50,32 +52,44 @@ export const TEST_START_LEVEL = 20;
 
 // ---------- 구역 해금 ----------
 export const ZONE3_LEVEL = 5;
-export const ZONE4_LEVEL = Math.floor(MAX_LEVEL / 5 / 10) * 10; // 만렙의 1/5, 1의 자리 버림 → 20
+export const ZONE4_LEVEL = Math.floor(MAX_LEVEL / 5 / 10) * 10; // 만렙의 1/5(23.4), 1의 자리 버림 → 20
 
 // ---------- 스킬 ----------
-// 해금되면 1레벨, 최대 5레벨. 단계별 비용 1 → 3 → 5 → 7 (합 16)
-export const SKILL_COSTS = [1, 3, 5, 7];
+// 최대 5레벨. SKILL_COSTS[지금 레벨] = 다음 레벨로 올리는 비용
+//   0→1: 1 (0레벨 시작 스킬만), 1→2: 1, 2→3: 3, 3→4: 5, 4→5: 7
+// start: 0이면 포인트를 찍어야 쓸 수 있음. unlock: 이 레벨부터 포인트를 찍을 수 있음
+export const SKILL_COSTS = [1, 1, 3, 5, 7];
 export const SKILL_MAX = 5;
 
 export const SKILLS = [
   { id: "inventory", name: "인벤토리", desc: "들고 다닐 수 있는 병 수", values: [4, 6, 8, 10, 12], unit: "개", unlock: 1 },
   { id: "flasks", name: "플라스크", desc: "작업실 1구역 플라스크 수", values: [5, 10, 15, 22, 30], unit: "개", unlock: 1 },
   { id: "rack", name: "거치대", desc: "작업실 2구역 거치대 수", values: [5, 10, 15, 22, 30], unit: "칸", unlock: 1 },
-  { id: "drumCount", name: "물통 개수", desc: "작업실 3구역 물통 수", values: [2, 3, 4, 5, 6], unit: "개", unlock: ZONE3_LEVEL },
-  { id: "drumSize", name: "물통 크기", desc: "물통 하나에 담기는 칸 수", values: [12, 17, 22, 27, 32], unit: "칸", unlock: ZONE3_LEVEL },
-  { id: "sorterCap", name: "분류기", desc: "분류기 저장 칸 수와 주입기(밸브) 수", values: [12, 24, 36, 48, 60], unit: "칸",
-    extra: { name: "주입기", values: [3, 3, 4, 4, 5], unit: "개" }, unlock: ZONE4_LEVEL },
+  { id: "drum", name: "물통", desc: "작업실 3구역 물통 크기와 개수", values: [12, 17, 22, 27, 32], unit: "칸",
+    extra: { name: "개수", values: [2, 3, 4, 5, 6], unit: "개" }, unlock: ZONE3_LEVEL, start: 0 },
+  { id: "sorterCap", name: "분류기", desc: "작업실 4구역 분류기 저장 칸 수와 주입기(밸브) 수", values: [12, 24, 36, 48, 60], unit: "칸",
+    extra: { name: "주입기", values: [3, 3, 4, 4, 5], unit: "개" }, unlock: ZONE4_LEVEL, start: 0 },
   {
-    id: "summon", name: "부름", active: true, unlock: 1,
+    id: "summon", name: "부름", active: true, unlock: 1, start: 0,
     desc: "들고 있는 약병과 같은 라벨 색의 약병을 같은 방 바닥에서 인벤토리로 불러옴",
     values: [2, 3, 4, 5, 6], unit: "병", cooldown: [20, 15, 12, 8, 5],
   },
   {
-    id: "autoShelve", name: "자동 진열", active: true, unlock: 1,
+    id: "autoShelve", name: "자동 진열", active: true, unlock: 1, start: 0,
     desc: "지속시간 동안, 열어 둔 선반에 맞는 완성 약병을 인벤토리에서 꺼내 제자리에 넣음",
     values: [10, 15, 20, 25, 30], unit: "초", cooldown: [20, 15, 12, 8, 5],
   },
 ];
+
+/** 스킬을 처음 레벨부터 5레벨까지 올리는 데 드는 포인트 */
+export function skillTotalCost(s) {
+  let sum = 0;
+  for (let l = s.start ?? 1; l < SKILL_MAX; l++) sum += SKILL_COSTS[l];
+  return sum;
+}
+if (SKILLS.reduce((a, s) => a + skillTotalCost(s), 0) !== MAX_LEVEL - 1) {
+  console.warn("MAX_LEVEL이 스킬 총비용 + 1과 다릅니다:", SKILLS.reduce((a, s) => a + skillTotalCost(s), 0) + 1);
+}
 
 export const MAX_FLASKS = 30;
 export const MAX_RACK = 30;

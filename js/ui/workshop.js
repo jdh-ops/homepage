@@ -71,14 +71,17 @@ export function renderWorkshop(ctx) {
     h("div", { class: "slots" }, Array.from({ length: g.rackCount }, (_, i) => slot(ctx, { a: "rack", i }))));
 
   const z3 = h("section", { class: "zone z3" }, h("h3", { text: "3구역 · 큰 물통" }));
-  if (g.zoneUnlocked(3)) {
+  if (g.zoneUsable(3)) {
     z3.append(h("div", { class: "drums" }, Array.from({ length: g.drumCount }, (_, i) => drum(ctx, i))));
+  } else if (g.zoneUnlocked(3)) {
+    z3.append(locked("스킬 창(K)에서 '물통'에 포인트를 찍으면 쓸 수 있어요"));
   } else {
     z3.append(locked(`레벨 ${ZONE3_LEVEL}에 열려요`));
   }
 
   const z4 = h("section", { class: "zone z4" }, h("h3", { text: "4구역 · 마법의 분류기" }));
-  if (g.zoneUnlocked(4)) z4.append(sorter(ctx));
+  if (g.zoneUsable(4)) z4.append(sorter(ctx));
+  else if (g.zoneUnlocked(4)) z4.append(locked("스킬 창(K)에서 '분류기'에 포인트를 찍으면 쓸 수 있어요"));
   else z4.append(locked(`레벨 ${ZONE4_LEVEL}에 열려요`));
 
   return h("div", { class: "room workshop" }, z1, z2, z3, z4, h("div", { class: "cross-v" }), h("div", { class: "cross-h" }));

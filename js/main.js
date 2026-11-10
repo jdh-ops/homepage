@@ -363,13 +363,13 @@ function renderSkills() {
     const lv = game.s.skills[s.id];
     const unlocked = game.skillUnlocked(s.id);
     const cost = game.upgradeCost(s.id);
-    const val = (l) => `${s.values[l - 1]}${s.unit}` + (s.extra ? ` · ${s.extra.name} ${s.extra.values[l - 1]}${s.extra.unit}` : "");
-    const cdText = s.cooldown ? ` · 대기 ${s.cooldown[lv - 1]}초` : "";
+    const val = (l) => `${s.values[l - 1]}${s.unit}` + (s.extra ? ` · ${s.extra.name} ${s.extra.values[l - 1]}${s.extra.unit}` : "")
+      + (s.cooldown ? ` · 대기 ${s.cooldown[l - 1]}초` : "");
     const btn = h("button", { class: "btn primary small" });
     if (!unlocked) { btn.textContent = `Lv ${s.unlock}에 해금`; btn.disabled = true; }
     else if (cost == null) { btn.textContent = "최대"; btn.disabled = true; }
     else {
-      btn.textContent = `강화 (${cost}P)`;
+      btn.textContent = lv === 0 ? `배우기 (${cost}P)` : `강화 (${cost}P)`;
       btn.disabled = !game.canUpgrade(s.id);
       btn.addEventListener("click", () => { game.upgrade(s.id); renderSkills(); });
     }
@@ -378,7 +378,7 @@ function renderSkills() {
       h("div", { class: "skill-main" },
         h("div", { class: "skill-name" }, h("b", { text: s.name }), s.active ? h("span", { class: "tag", text: "사용" }) : null),
         h("div", { class: "skill-desc muted", text: s.desc }),
-        h("div", { class: "skill-val" }, `현재 ${val(lv)}${cdText}`, cost != null ? ` → 다음 ${val(lv + 1)}` : "")),
+        h("div", { class: "skill-val" }, lv === 0 ? "아직 배우지 않음" : `현재 ${val(lv)}`, cost != null ? ` → 다음 ${val(lv + 1)}` : "")),
       pips, btn);
   });
   $("#skillList").replaceChildren(...list);
@@ -415,6 +415,7 @@ function useSkill(id) {
   const s = game.skillDef(id);
   const lv = game.s.skills[id];
   if (!game.skillUnlocked(id)) { toast(`${s.name}: 레벨 ${s.unlock}에 해금돼요.`); return; }
+  if (lv === 0) { toast(`${s.name}: 스킬 창(K)에서 포인트를 찍어야 쓸 수 있어요.`); return; }
   if (id === "autoShelve" && now < skillRt.autoUntil) { toast("자동 진열이 이미 켜져 있어요."); return; }
   if (now < skillRt.cdUntil[id]) { toast(`${s.name}: ${((skillRt.cdUntil[id] - now) / 1000).toFixed(1)}초 뒤에 쓸 수 있어요.`); return; }
 
@@ -453,7 +454,9 @@ function renderSkillBar() {
     const active = id === "autoShelve" && now < skillRt.autoUntil;
     const cd = Math.max(0, skillRt.cdUntil[id] - now);
     let state, frac = 0;
-    if (active) {
+    if (lv === 0) {
+      state = "배우지 않음 (K)";
+    } else if (active) {
       const total = s.values[lv - 1] * 1000;
       state = `켜짐 ${((skillRt.autoUntil - now) / 1000).toFixed(1)}초`;
       frac = (skillRt.autoUntil - now) / total;
@@ -464,9 +467,9 @@ function renderSkillBar() {
       state = id === "summon" ? `${s.values[lv - 1]}병 불러오기` : `${s.values[lv - 1]}초 동안`;
     }
     b.classList.toggle("active", active);
-    b.classList.toggle("cooling", !active && cd > 0);
+    b.classList.toggle("cooling", lv === 0 || (!active && cd > 0));
     b.replaceChildren(
-      h("kbd", { text: ACTIVE_KEYS[id] }), h("b", { text: s.name }), ` Lv${lv}`,
+      h("kbd", { text: ACTIVE_KEYS[id] }), h("b", { text: s.name }), lv ? ` Lv${lv}` : "",
       h("small", { text: state }),
       h("i", { class: "cd", style: `width:${Math.min(1, frac) * 100}%` }));
   }

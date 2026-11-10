@@ -59,7 +59,7 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
   for (let r = 0; r < BREWERY_COUNT; r++) floor.push(bottleIds.slice(r * per, (r + 1) * per).map((id) => ({ id, x: null, y: null, a: 0 })));
 
   const skills = {};
-  for (const s of SKILLS) skills[s.id] = 1;
+  for (const s of SKILLS) skills[s.id] = s.start ?? 1;
 
   return {
     v: 1,
@@ -89,6 +89,13 @@ export class Game {
 
   /** 예전 세이브 보정: 열 방식 더미(piles) → 바닥 위치 방식(floor) */
   migrate() {
+    // 스킬 개편: 물통 개수+크기 → '물통' 하나, 물통·분류기·사용 스킬은 0레벨 시작 (해당 스킬은 초기화)
+    if (this.s.skills.drumCount !== undefined) {
+      delete this.s.skills.drumCount;
+      delete this.s.skills.drumSize;
+      for (const id of ["drum", "sorterCap", "summon", "autoShelve"]) this.s.skills[id] = 0;
+    }
+    for (const s of SKILLS) if (this.s.skills[s.id] == null) this.s.skills[s.id] = s.start ?? 1;
     // 임시 테스트: 시작 레벨 끌어올리기
     this.s.xp = Math.max(this.s.xp, xpForLevel(TEST_START_LEVEL));
     this.compactInventory();
@@ -113,16 +120,19 @@ export class Game {
   get level() { return levelFromXp(this.s.xp); }
   spentPoints() {
     let sum = 0;
-    for (const s of SKILLS) for (let l = 1; l < this.s.skills[s.id]; l++) sum += SKILL_COSTS[l - 1];
+    for (const s of SKILLS) for (let l = s.start ?? 1; l < this.s.skills[s.id]; l++) sum += SKILL_COSTS[l];
     return sum;
   }
   get skillPoints() { return this.level - 1 - this.spentPoints(); }
   skillDef(id) { return SKILLS.find((s) => s.id === id); }
   skillUnlocked(id) { return this.level >= this.skillDef(id).unlock; }
-  skillValue(id) { return this.skillDef(id).values[this.s.skills[id] - 1]; }
+  /** 스킬 값 (0레벨이면 null) */
+  skillValue(id) { const lv = this.s.skills[id]; return lv > 0 ? this.skillDef(id).values[lv - 1] : null; }
+  skillExtra(id) { const lv = this.s.skills[id]; return lv > 0 ? this.skillDef(id).extra.values[lv - 1] : null; }
+  hasSkill(id) { return this.s.skills[id] > 0; }
   upgradeCost(id) {
     const lv = this.s.skills[id];
-    return lv >= SKILL_MAX ? null : SKILL_COSTS[lv - 1];
+    return lv >= SKILL_MAX ? null : SKILL_COSTS[lv];
   }
   canUpgrade(id) {
     const cost = this.upgradeCost(id);
@@ -135,6 +145,13 @@ export class Game {
     return true;
   }
 
+  /** 구역을 실제로 쓸 수 있나: 레벨 도달 + 스킬 1레벨 이상 */
+  zoneUsable(n) {
+    if (n === 3) return this.zoneUnlocked(3) && this.hasSkill("drum");
+    if (n === 4) return this.zoneUnlocked(4) && this.hasSkill("sorterCap");
+    return true;
+  }
+
   zoneUnlocked(n) {
     if (n === 3) return this.level >= ZONE3_LEVEL;
     if (n === 4) return this.level >= ZONE4_LEVEL;
@@ -144,8 +161,8 @@ export class Game {
   get invSize() { return this.skillValue("inventory"); }
   get flaskCount() { return this.skillValue("flasks"); }
   get rackCount() { return this.skillValue("rack"); }
-  get drumCount() { return this.zoneUnlocked(3) ? this.skillValue("drumCount") : 0; }
-  get drumCap() { return this.skillValue("drumSize"); }
+  get drumCount() { return this.zoneUsable(3) ? this.skillExtra("drum") : 0; }
+  get drumCap() { return this.skillValue("drum") ?? 0; }
 
   // ----- 위치 -----
   // loc: {a:'inv'|'flask'|'rack'|'drum'|'shelf'|'pile', ...}
@@ -157,7 +174,7 @@ export class Game {
       case "flask": return loc.i < this.flaskCount;
       case "rack": return loc.i < this.rackCount;
       case "drum": return loc.i < this.drumCount;
-      case "inj": return this.zoneUnlocked(4) && loc.i < this.sorterInjectors;
+      case "inj": return loc.i < this.sorterInjectors;
       case "shelf": return true;
       default: return false;
     }
@@ -272,8 +289,8 @@ export class Game {
   }
 
   // ----- 분류기 (4구역) -----
-  get sorterCap() { return this.skillValue("sorterCap"); }
-  get sorterInjectors() { return this.skillDef("sorterCap").extra.values[this.s.skills.sorterCap - 1]; }
+  get sorterCap() { return this.skillValue("sorterCap") ?? 0; }
+  get sorterInjectors() { return this.zoneUsable(4) ? this.skillExtra("sorterCap") : 0; }
 
   /** 밸브: 주입기에 꽂힌 병의 내용물을 전부(위에서부터) 저장 공간으로. 꽉 차면 멈춤 */
   sorterInject(i) {
