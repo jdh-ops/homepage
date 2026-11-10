@@ -8,7 +8,7 @@ const STEP_MS = 1000 / 60;
 
 export function createBreweryView(ctx) {
   let roomIdx = -1;
-  let root, store, world, countEl, peek;
+  let root, store, world, countEl;
   let engine = null;
   let scale = 1;
   let raf = 0;
@@ -171,7 +171,6 @@ export function createBreweryView(ctx) {
     countEl = h("span", { class: "count" });
     world = h("div", { class: "floor-world" });
     store = h("div", { class: "store" }, world);
-    peek = h("div", { class: "pile-peek" });
     root = h("div", { class: "room brewery" },
       h("div", { class: "cauldron-area" },
         h("div", { class: "cauldron" },
@@ -180,7 +179,7 @@ export function createBreweryView(ctx) {
           h("div", { class: "fire" })),
         h("div", { class: "room-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl,
           h("div", { class: "muted small", text: "휠로 아래까지 내려 볼 수 있어요" }))),
-      store, peek);
+      store);
 
     world.addEventListener("click", (e) => {
       const b = e.target.closest("[data-pile]");
@@ -192,18 +191,6 @@ export function createBreweryView(ctx) {
       ctx.dropToPile(roomIdx, { x, y });
     });
 
-    // 마우스를 올리면 크게 보기
-    world.addEventListener("mouseover", (e) => {
-      const b = e.target.closest("[data-pile]");
-      if (!b) { peek.classList.remove("show"); return; }
-      peek.replaceChildren(vial(ctx.game.item(+b.dataset.pile)));
-      peek.classList.add("show");
-    });
-    world.addEventListener("mousemove", (e) => {
-      peek.style.left = e.clientX + 18 + "px";
-      peek.style.top = e.clientY - 50 + "px";
-    });
-    world.addEventListener("mouseleave", () => peek.classList.remove("show"));
     return root;
   }
 

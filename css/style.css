@@ -153,7 +153,7 @@ b { font-weight: 700; }
   inset: 14% 0 0 0;
   border: 2px solid rgba(235, 228, 255, 0.75);
   border-radius: 30% 30% 22% 22% / 14% 14% 12% 12%;
-  background: rgba(20, 14, 34, 0.75);
+  background: rgba(255, 255, 255, 0.06);
   overflow: hidden;
   display: flex;
   flex-direction: column-reverse;
@@ -285,27 +285,11 @@ b { font-weight: 700; }
   top: 0;
   transform-origin: 50% 50%;
   cursor: pointer;
-  will-change: transform;
-  filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
 }
-.pile-item:hover { filter: drop-shadow(0 0 5px #fff) brightness(1.15); }
+.pile-item:hover { filter: brightness(1.25); }
 .floor-world .vial { --vw: inherit; }
 .room-caption .small { font-size: 12px; margin-top: 2px; }
 
-/* 조제실: 마우스를 올린 약병 크게 보기 */
-.pile-peek {
-  position: fixed;
-  z-index: 60;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(20, 14, 38, 0.92);
-  border: 1px solid var(--line);
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-.pile-peek.show { opacity: 1; }
-.pile-peek .vial { --vw: 52px; }
 
 /* ---------- 작업실 ---------- */
 .workshop {
@@ -343,7 +327,7 @@ b { font-weight: 700; }
   border: 2px solid #b9a98a;
   border-top: none;
   border-radius: 0 0 10px 10px;
-  background: rgba(20, 14, 34, 0.75);
+  background: rgba(255, 255, 255, 0.06);
   display: flex;
   flex-direction: column-reverse;
   overflow: hidden;
