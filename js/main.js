@@ -129,7 +129,7 @@ function renderInfo() {
   let help = "";
   if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
   else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제).";
-  else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 고른 뒤 인벤토리 빈칸을 클릭하면 되돌려요.";
+  else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 클릭하면 인벤토리로 돌아와요 (완성된 행은 제외).";
   const sel = describeSel();
   $("#info").replaceChildren(
     h("div", { class: "info-sel" }, sel ? h("span", {}, "선택: ", h("b", { text: sel })) : h("span", { class: "muted", text: "선택한 병 없음" })),
@@ -182,6 +182,11 @@ function onLoc(loc) {
   const sel = ui.sel;
   // 작업실: 클릭 = 인벤토리 ↔ 1·2구역 이동 (선택은 우클릭)
   if (game.s.room === "workshop" && (loc.a === "inv" || loc.a === "flask" || loc.a === "rack") && locHas(loc)) {
+    quickMove(loc);
+    return;
+  }
+  // 선반 방: 선반의 약병을 클릭하면 인벤토리로
+  if (loc.a === "shelf" && locHas(loc)) {
     quickMove(loc);
     return;
   }
