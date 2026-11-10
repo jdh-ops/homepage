@@ -441,12 +441,12 @@ b { font-weight: 700; }
 .map-panel { width: 560px; }
 .map-grid {
   display: grid;
-  /* 조제실은 모두 조제실 3과 같은 크기 (한 칸, 높이 90px) */
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: 90px 150px 190px;
+  /* 조제실 1·2·4·5: 세로로 긴 직사각형(약 129×210), 조제실 3(약 220×116)과 넓이가 비슷하게 */
+  grid-template-columns: 1fr 1.7fr 1fr;
+  grid-template-rows: 116px 88px 210px;
   grid-template-areas:
     "b2 b3 b4"
-    ".  sh  ."
+    "b2 sh b4"
     "b1 ws b5";
   gap: 6px;
   padding: 10px;
@@ -468,27 +468,12 @@ b { font-weight: 700; }
 }
 .map-room:hover { filter: brightness(1.15); }
 .map-room small { color: var(--muted); }
-.map-room.brewroom { background: #23331f; height: 90px; align-self: center; }
+.map-room.brewroom { background: #23331f; }
 .map-room.here { outline: 3px solid var(--gold); }
 .map-room.here b::before { content: "📍 "; }
 .map-room.is-locked { background: repeating-linear-gradient(45deg, #1d1726 0 8px, #241c30 8px 16px); color: var(--muted); }
 .map-lock { position: absolute; left: 6px; top: 4px; font-size: 13px; }
 .map-go { margin-top: 4px; }
-.map-door {
-  width: calc((100% - 32px) / 3);
-  height: 56px;
-  margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 2px dashed rgba(255, 255, 255, 0.35);
-  border-radius: 6px;
-  color: var(--muted);
-  border-top: none;
-  border-radius: 0 0 6px 6px;
-}
-.map-door small { font-size: 11px; }
 
 .skill-panel { width: 720px; }
 .small-note { margin: -4px 0 12px; font-size: 13px; }
