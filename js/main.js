@@ -125,14 +125,14 @@ function describeSel() {
 function renderInfo() {
   const room = game.s.room;
   let help = "";
-  if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. 인벤토리 약병을 고른 뒤 바닥을 클릭하면 내려놓아요.";
-  else if (room === "workshop") help = "병을 고른 뒤 다른 병·물통을 클릭하면 부어요. 빈 칸을 클릭하면 옮겨요. 우클릭: 인벤토리 ↔ 작업실 빠른 이동.";
-  else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 우클릭: 인벤토리로 되돌리기.";
+  if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
+  else if (room === "workshop") help = "클릭: 병 선택 / 빈 칸으로 옮기기. 우클릭: 선택한 병의 내용물을 다른 병·물통에 붓기. R: 선택한 병을 거치대(플라스크는 1구역)로.";
+  else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 고른 뒤 인벤토리 빈칸을 클릭하면 되돌려요.";
   const sel = describeSel();
   $("#info").replaceChildren(
     h("div", { class: "info-sel" }, sel ? h("span", {}, "선택: ", h("b", { text: sel })) : h("span", { class: "muted", text: "선택한 병 없음" })),
     h("div", { class: "info-help", text: help }),
-    h("div", { class: "info-keys muted", text: "Q/E: 인벤토리 선택 · A/D: 이전/다음 방 · 1/2: 스킬 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
+    h("div", { class: "info-keys muted", text: "Q/W: 인벤토리 선택 · R: 버리기 · 우클릭: 붓기 · A/D: 이전/다음 방 · 1/2: 스킬 · M: 지도 · K: 스킬 창 · Esc: 선택 취소" }));
 }
 
 // ---------- 조작 ----------
@@ -184,15 +184,7 @@ function onLoc(loc) {
   }
   if (sameLoc(sel, loc)) { ui.sel = null; refresh(); return; }
 
-  const targetIsContainer = loc.a === "drum" || (loc.a !== "shelf" && game.itemAt(loc) != null);
-  if (targetIsContainer && sel.a !== "shelf") {
-    const n = game.pourAmount(sel, loc);
-    if (n) { doPour(sel, loc, n); return; }
-    toast(pourFailReason(sel, loc));
-    if (loc.a !== "drum" || locHas(loc)) ui.sel = loc;
-    refresh();
-    return;
-  }
+  if (loc.a === "drum" && !locHas(loc)) { toast("물통에 부으려면 우클릭하세요."); return; }
   if (!locHas(loc)) {
     if (sel.a === "drum") { toast("물통은 옮길 수 없어요. 빈 병을 골라 물통에서 따라 주세요."); return; }
     if (!game.move(sel, loc)) { toast(moveFailReason(sel, loc)); return; }
@@ -204,6 +196,28 @@ function onLoc(loc) {
   refresh();
 }
 
+/** 우클릭: 선택한 병(또는 물통)의 내용물을 대상에 붓기 */
+function pourInto(loc) {
+  if (ui.busy) return;
+  const sel = ui.sel;
+  if (!sel) { toast("먼저 부을 병을 클릭해서 선택하세요."); return; }
+  if (sameLoc(sel, loc)) return;
+  if (sel.a === "shelf" || loc.a === "shelf") { toast("선반의 약병에는 붓거나 따를 수 없어요."); return; }
+  if (loc.a !== "drum" && game.itemAt(loc) == null) { toast("빈자리에는 부을 수 없어요. 병이나 물통을 우클릭하세요."); return; }
+  const n = game.pourAmount(sel, loc);
+  if (n) doPour(sel, loc, n);
+  else toast(pourFailReason(sel, loc));
+}
+
+/** R: 선택한 인벤토리 물건 버리기 (조제실: 바닥, 작업실: 거치대/플라스크 자리) */
+function discardSelected() {
+  if (ui.busy) return;
+  if (ui.sel?.a !== "inv" || game.itemAt(ui.sel) == null) { toast("인벤토리에서 버릴 병을 먼저 선택하세요 (Q/W)."); return; }
+  const room = game.s.room;
+  if (!room.startsWith("brewery") && room !== "workshop") { toast("버리기는 조제실과 작업실에서만 할 수 있어요."); return; }
+  quickMove(ui.sel);
+}
+
 function quickMove(loc) {
   if (ui.busy) return;
   const id = game.itemAt(loc);
@@ -212,7 +226,8 @@ function quickMove(loc) {
   let dst = null;
   if (loc.a === "inv") {
     if (game.s.room === "workshop") dst = game.firstFree(it.t === "f" ? "flask" : "rack", id);
-    else if (game.s.room.startsWith("brewery") && it.t === "b") {
+    else if (game.s.room.startsWith("brewery") && it.t === "f") { toast("플라스크는 바닥에 버릴 수 없어요."); return; }
+    else if (game.s.room.startsWith("brewery")) {
       const r = +game.s.room.slice(7);
       const cols = game.s.piles[r];
       const col = cols.reduce((best, c, i) => (c.length < cols[best].length ? i : best), 0);
@@ -223,7 +238,7 @@ function quickMove(loc) {
   } else {
     dst = game.firstFree("inv", id);
   }
-  if (!dst) { toast(loc.a === "inv" ? "놓을 빈자리가 없어요." : "인벤토리가 가득 찼어요."); return; }
+  if (!dst) { toast(loc.a !== "inv" ? "인벤토리가 가득 찼어요." : it.t === "f" ? "1구역에 빈 플라스크 자리가 없어요." : "거치대에 빈자리가 없어요."); return; }
   const prevSel = ui.sel;
   ui.sel = null;
   if (!game.move(loc, dst)) { ui.sel = prevSel; toast(moveFailReason(loc, dst)); }
@@ -237,10 +252,10 @@ document.addEventListener("click", (e) => {
   if (ui.sel && e.target.closest("#view") && !e.target.closest(".pile")) { ui.sel = null; refresh(); }
 });
 document.addEventListener("contextmenu", (e) => {
+  if (!e.target.closest("#view, .inventory")) return;
+  e.preventDefault(); // 게임 화면에서는 브라우저 메뉴 대신 붓기
   const el = e.target.closest("[data-loc]");
-  if (!el) return;
-  e.preventDefault();
-  quickMove(parseLoc(el.dataset.loc));
+  if (el) pourInto(parseLoc(el.dataset.loc));
 });
 
 // ---------- 지도 ----------
@@ -309,7 +324,7 @@ function useSkill(id) {
   if (id === "summon") {
     if (!game.s.room.startsWith("brewery")) { toast("부름은 조제실에서만 쓸 수 있어요."); return; }
     const it = ui.sel?.a === "inv" ? game.item(game.itemAt(ui.sel)) : null;
-    if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/E)."); return; }
+    if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/W)."); return; }
     const free = game.s.inv.slice(0, game.invSize).filter((x) => x == null).length;
     if (!free) { toast("인벤토리가 가득 찼어요."); return; }
     const got = game.summon(+game.s.room.slice(7), it.c, s.values[lv - 1]);
@@ -414,7 +429,8 @@ document.addEventListener("keydown", (e) => {
     case "KeyM": toggleOverlay("#mapOverlay"); break;
     case "KeyK": toggleOverlay("#skillOverlay"); break;
     case "KeyQ": cycleInventory(-1); break;
-    case "KeyE": cycleInventory(1); break;
+    case "KeyW": cycleInventory(1); break;
+    case "KeyR": discardSelected(); break;
     case "KeyA": stepRoom(-1); break;
     case "KeyD": stepRoom(1); break;
     case "Digit1": case "Numpad1": useSkill("summon"); break;
@@ -424,7 +440,7 @@ document.addEventListener("keydown", (e) => {
   e.preventDefault();
 });
 
-/** Q/E: 인벤토리에서 물건이 있는 칸 사이 이전/다음 선택 */
+/** Q/W: 인벤토리에서 물건이 있는 칸 사이 이전/다음 선택 */
 function cycleInventory(dir) {
   if (ui.busy) return;
   const filled = [];
@@ -436,7 +452,7 @@ function cycleInventory(dir) {
     if (dir > 0) next = filled.find((i) => i > cur) ?? filled[0];
     else next = [...filled].reverse().find((i) => i < cur) ?? filled[filled.length - 1];
   } else {
-    next = dir > 0 ? filled[0] : filled[filled.length - 1]; // E: 처음, Q: 마지막
+    next = dir > 0 ? filled[0] : filled[filled.length - 1]; // W: 처음, Q: 마지막
   }
   ui.sel = { a: "inv", i: next };
   refresh();
