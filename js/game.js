@@ -1,7 +1,7 @@
 // 게임 상태와 규칙. 화면과 무관하게 동작한다.
 import {
   COLORS, DAYS, UNITS_PER_BOTTLE, BOTTLES_PER_LABEL, SHELF_ROWS, BREWERY_COUNT,
-  PILE_COLUMNS, PILE_MAX_HEIGHT, ROW_XP, levelFromXp, SKILLS, SKILL_COSTS, SKILL_MAX,
+  ROW_XP, levelFromXp, SKILLS, SKILL_COSTS, SKILL_MAX,
   MAX_FLASKS, MAX_RACK, MAX_DRUMS, MAX_INVENTORY, ZONE3_LEVEL, ZONE4_LEVEL, SAVE_KEY,
 } from "./config.js";
 
@@ -23,20 +23,6 @@ function shuffle(arr, rand) {
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
-}
-
-/** 약병들을 더미 열에 나눠 쌓기 (가운데가 조금 더 높게) */
-function distributePile(ids, rand) {
-  const cols = Array.from({ length: PILE_COLUMNS }, () => []);
-  const weight = cols.map((_, i) => 1 + 1.2 * Math.sin((Math.PI * (i + 0.5)) / PILE_COLUMNS));
-  for (const id of ids) {
-    const open = cols.map((c, i) => (c.length < PILE_MAX_HEIGHT ? weight[i] : 0));
-    let x = rand() * open.reduce((a, b) => a + b, 0);
-    let pick = 0;
-    while (pick < cols.length - 1 && (open[pick] === 0 || x > open[pick])) x -= open[pick++];
-    cols[pick].push(id);
-  }
-  return cols;
 }
 
 // ---------- 새 게임 ----------
@@ -66,11 +52,11 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
     flaskSlots[k] = id;
   }
 
-  // 조제실 5곳에 고르게 나누고, 각 방 안에서 무작위 더미 열에 쌓기
+  // 조제실 5곳에 고르게 나눔. 위치(x, y, a)는 처음 방에 들어갈 때 물리 엔진이 쌓아서 정함
   const bottleIds = shuffle(labels.map((_, i) => i), rand);
   const per = Math.ceil(bottleIds.length / BREWERY_COUNT);
-  const piles = [];
-  for (let r = 0; r < BREWERY_COUNT; r++) piles.push(distributePile(bottleIds.slice(r * per, (r + 1) * per), rand));
+  const floor = [];
+  for (let r = 0; r < BREWERY_COUNT; r++) floor.push(bottleIds.slice(r * per, (r + 1) * per).map((id) => ({ id, x: null, y: null, a: 0 })));
 
   const skills = {};
   for (const s of SKILLS) skills[s.id] = 1;
@@ -79,7 +65,7 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
     v: 1,
     seed,
     items,
-    piles,
+    floor,
     inv: new Array(MAX_INVENTORY).fill(null),
     flasks: flaskSlots,
     rack: new Array(MAX_RACK).fill(null),
@@ -100,16 +86,12 @@ export class Game {
     this.migrate();
   }
 
-  /** 예전 세이브 보정: 더미 열 수/높이가 바뀌었으면 다시 쌓기 */
+  /** 예전 세이브 보정: 열 방식 더미(piles) → 바닥 위치 방식(floor) */
   migrate() {
-    this.s.piles = this.s.piles.map((cols, r) => {
-      if (cols.length === PILE_COLUMNS && cols.every((c) => c.length <= PILE_MAX_HEIGHT)) return cols;
-      // 아래층부터 차례로 모아서 다시 나눔
-      const ids = [];
-      const maxH = Math.max(0, ...cols.map((c) => c.length));
-      for (let k = 0; k < maxH; k++) for (const c of cols) if (c[k] != null) ids.push(c[k]);
-      return distributePile(ids, mulberry32(this.s.seed + r + 1));
-    });
+    if (!this.s.floor && this.s.piles) {
+      this.s.floor = this.s.piles.map((cols) => cols.flat().map((id) => ({ id, x: null, y: null, a: 0 })));
+      delete this.s.piles;
+    }
   }
 
   onChange(fn) { this.listeners.add(fn); }
@@ -263,53 +245,56 @@ export class Game {
     return null;
   }
 
-  // ----- 조제실 더미 -----
+  // ----- 조제실 바닥 -----
   takeFromPile(room, id) {
-    const cols = this.s.piles[room];
-    const col = cols.findIndex((c) => c.includes(id));
-    if (col < 0) return false;
+    const list = this.s.floor[room];
+    const k = list.findIndex((e) => e.id === id);
+    if (k < 0) return false;
     const dst = this.firstFree("inv", id);
     if (!dst) return false;
-    cols[col].splice(cols[col].indexOf(id), 1);
+    list.splice(k, 1);
     this.setAt(dst, id);
     this.changed({ type: "pileTake", room, id });
     return true;
   }
 
-  dropToPile(src, room, col) {
+  /** 인벤토리 약병을 바닥에 버리기. pos(물리 단위)가 없으면 화면이 더미 위쪽 아무 데나 떨어뜨림 */
+  dropToPile(src, room, pos = null) {
     const id = this.itemAt(src);
     const it = this.item(id);
     if (!it || it.t !== "b" || !this.canTake(src)) return false;
-    const cols = this.s.piles[room];
-    if (cols[col].length >= PILE_MAX_HEIGHT) {
-      // 가장 낮은 열로
-      col = cols.reduce((best, c, i) => (c.length < cols[best].length ? i : best), 0);
-    }
     this.setAt(src, null);
-    cols[col].push(id);
+    this.s.floor[room].push({ id, x: pos?.x ?? null, y: pos?.y ?? null, a: 0, drop: true });
     this.changed({ type: "pileDrop", room, id });
     return true;
   }
 
   pileCount(room) {
-    return this.s.piles[room].reduce((a, c) => a + c.length, 0);
+    return this.s.floor[room].length;
+  }
+
+  /** 물리 엔진이 멈춘 뒤 병 위치 기록 (화면 갱신 없이 저장만) */
+  setFloorPositions(room, posById) {
+    for (const e of this.s.floor[room]) {
+      const p = posById.get(e.id);
+      if (!p) continue;
+      e.x = Math.round(p.x * 10) / 10;
+      e.y = Math.round(p.y * 10) / 10;
+      e.a = Math.round(p.a * 1000) / 1000;
+      delete e.drop;
+    }
   }
 
   /** 부름: 같은 방 바닥에서 라벨 색이 같은 약병을 위쪽부터 최대 n개 인벤토리로 */
   summon(room, color, n) {
-    const cols = this.s.piles[room];
-    const found = [];
-    cols.forEach((col, ci) => col.forEach((id, k) => {
-      if (this.item(id).c === color) found.push({ ci, k, id });
-    }));
-    found.sort((a, b) => b.k - a.k); // 위에 있는 것부터
+    const list = this.s.floor[room];
+    const found = list.filter((e) => this.item(e.id).c === color).sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
     let got = 0;
     for (const f of found) {
       if (got >= n) break;
       const dst = this.firstFree("inv", f.id);
       if (!dst) break;
-      const col = cols[f.ci];
-      col.splice(col.indexOf(f.id), 1);
+      list.splice(list.indexOf(f), 1);
       this.setAt(dst, f.id);
       got++;
     }

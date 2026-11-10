@@ -1,103 +1,237 @@
-// 조제실: 위쪽 가마솥, 아래쪽 창고에 약병 더미.
-import { PILE_COLUMNS, PILE_MAX_HEIGHT } from "../config.js";
+// 조제실: 위쪽 가마솥, 아래쪽 창고 바닥에 물리 엔진으로 쌓인 약병 더미.
+// 창고는 화면보다 깊어서 세로로 스크롤 (스크롤바는 숨김).
+import { FLOOR_W, FLOOR_H, BOTTLE_W, BOTTLE_H } from "../config.js";
 import { h, vial } from "./common.js";
 
-// 아이템마다 고정된 흐트러짐 (매번 같은 자리에 그려지도록)
-function jitter(id, salt) {
-  let x = (id + 1) * 2654435761 + salt * 40503;
-  x = (x ^ (x >>> 13)) * 1274126177;
-  return (((x ^ (x >>> 16)) >>> 0) % 1000) / 1000 - 0.5; // -0.5 ~ 0.5
-}
-
-// 흐트러짐 정도 (x: 열 너비 대비 좌우, y: 층 간격 대비 위아래, rot: 최대 기울기°)
-// 병마다 절반 이상 보이는 범위에서 조정한 값
-export const PILE_TUNE = { x: 0.5, y: 0.2, rot: 18 };
+const M = window.Matter;
+const STEP_MS = 1000 / 60;
 
 export function createBreweryView(ctx) {
   let roomIdx = -1;
-  let root, pileEl, countEl;
-  const els = new Map(); // id → element
+  let root, store, world, countEl, peek;
+  let engine = null;
+  let scale = 1;
+  let raf = 0;
+  const bodies = new Map(); // id → body
+  const els = new Map();    // id → element
 
+  // ---------- 물리 ----------
+  function newEngine() {
+    const e = M.Engine.create({ enableSleeping: true });
+    e.positionIterations = 8;
+    e.velocityIterations = 6;
+    const wall = (x, y, w, hh) => M.Bodies.rectangle(x, y, w, hh, { isStatic: true, friction: 0.8 });
+    M.Composite.add(e.world, [
+      wall(FLOOR_W / 2, FLOOR_H + 50, FLOOR_W + 400, 100), // 바닥
+      wall(-50, FLOOR_H / 2 - 400, 100, FLOOR_H * 3),       // 왼쪽 벽
+      wall(FLOOR_W + 50, FLOOR_H / 2 - 400, 100, FLOOR_H * 3),
+    ]);
+    return e;
+  }
+
+  function makeBody(id, x, y, a) {
+    const b = M.Bodies.rectangle(x, y, BOTTLE_W, BOTTLE_H, {
+      chamfer: { radius: 6 },
+      angle: a,
+      friction: 0.6,
+      frictionStatic: 0.9,
+      restitution: 0.05,
+      density: 0.002,
+    });
+    b.plugin.id = id;
+    bodies.set(id, b);
+    M.Composite.add(engine.world, b);
+    return b;
+  }
+
+  /** x 근처 더미 꼭대기(가장 작은 y) */
+  function heapTopNear(x, range = BOTTLE_H) {
+    let top = FLOOR_H;
+    for (const b of bodies.values()) {
+      if (Math.abs(b.position.x - x) < range) top = Math.min(top, b.bounds.min.y);
+    }
+    return top;
+  }
+
+  /** 처음 방에 들어왔을 때: 위치 없는 병들을 비처럼 떨어뜨려 화면 없이 쌓기 */
+  function settleUnplaced(entries) {
+    const perRow = Math.floor(FLOOR_W / (BOTTLE_W * 1.6));
+    const base = Math.min(FLOOR_H, ...[...bodies.values()].map((b) => b.bounds.min.y)) - 40;
+    entries.forEach((e, i) => {
+      const row = Math.floor(i / perRow), col = i % perRow;
+      const x = 20 + (col * (FLOOR_W - 40)) / perRow + Math.random() * 12;
+      const y = base - row * (BOTTLE_H + 14) - Math.random() * 20;
+      makeBody(e.id, x, y, (Math.random() - 0.5) * 1.4);
+    });
+    for (let k = 0; k < 2000; k++) {
+      M.Engine.update(engine, STEP_MS);
+      if (k > 60 && [...bodies.values()].every((b) => b.isSleeping)) break;
+    }
+    persist();
+  }
+
+  /** 빠진 병 주변과 그 위에 있던 병만 깨움 (나머지는 부딪히면 알아서 깨어남) */
+  function wakeAround(x, y) {
+    for (const b of bodies.values()) {
+      if (Math.abs(b.position.x - x) < BOTTLE_H * 1.6 && b.position.y < y + BOTTLE_H * 0.6) M.Sleeping.set(b, false);
+    }
+  }
+
+  function persist() {
+    const pos = new Map();
+    for (const [id, b] of bodies) pos.set(id, { x: b.position.x, y: b.position.y, a: b.angle });
+    ctx.game.setFloorPositions(roomIdx, pos);
+    ctx.saveSoon();
+  }
+
+  function run() {
+    if (raf) return;
+    let last = performance.now();
+    const tick = (now) => {
+      // 느린 컴퓨터에서도 같은 속도로: 밀린 만큼 여러 번 계산 (최대 4번)
+      let n = Math.min(4, Math.max(1, Math.round((now - last) / STEP_MS)));
+      last = now;
+      while (n--) M.Engine.update(engine, STEP_MS);
+      draw();
+      const moving = [...bodies.values()].some((b) => !b.isSleeping);
+      if (moving) raf = requestAnimationFrame(tick);
+      else { raf = 0; persist(); }
+    };
+    raf = requestAnimationFrame(tick);
+  }
+
+  function stop() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+  }
+
+  // ---------- 그리기 ----------
+  function measure() {
+    scale = (store.clientWidth || 1000) / FLOOR_W;
+    world.style.height = FLOOR_H * scale + "px";
+    world.style.setProperty("--vw", BOTTLE_W * scale + "px");
+  }
+
+  function draw() {
+    const w = BOTTLE_W * scale, hh = BOTTLE_H * scale;
+    for (const [id, b] of bodies) {
+      const el = els.get(id);
+      if (!el) continue;
+      el.style.transform =
+        `translate(${b.position.x * scale - w / 2}px, ${b.position.y * scale - hh / 2}px) rotate(${b.angle}rad)`;
+    }
+  }
+
+  function elFor(id) {
+    let el = els.get(id);
+    if (!el) {
+      el = h("div", { class: "pile-item", "data-pile": id });
+      el.append(vial(ctx.game.item(id)));
+      world.append(el);
+      els.set(id, el);
+    }
+    return el;
+  }
+
+  /** 게임 상태와 화면/물리 맞추기 */
+  function sync() {
+    const list = ctx.game.s.floor[roomIdx];
+    countEl.textContent = list.length;
+    const ids = new Set(list.map((e) => e.id));
+    let changed = false;
+
+    // 사라진 병 (집어 감, 부름)
+    for (const [id, b] of bodies) {
+      if (ids.has(id)) continue;
+      wakeAround(b.position.x, b.position.y);
+      M.Composite.remove(engine.world, b);
+      bodies.delete(id);
+      els.get(id)?.remove();
+      els.delete(id);
+      changed = true;
+    }
+    // 새로 떨어진 병
+    for (const e of list) {
+      if (bodies.has(e.id)) continue;
+      const x = e.x ?? 30 + Math.random() * (FLOOR_W - 60);
+      const y = e.y ?? heapTopNear(x) - BOTTLE_H;
+      makeBody(e.id, x, y, (Math.random() - 0.5) * 0.6);
+      elFor(e.id);
+      changed = true;
+    }
+    if (changed) run();
+    draw();
+  }
+
+  // ---------- 만들기 ----------
   function build(r) {
     roomIdx = r;
     els.clear();
+    bodies.clear();
     countEl = h("span", { class: "count" });
-    pileEl = h("div", { class: "pile" });
+    world = h("div", { class: "floor-world" });
+    store = h("div", { class: "store" }, world);
+    peek = h("div", { class: "pile-peek" });
     root = h("div", { class: "room brewery" },
       h("div", { class: "cauldron-area" },
         h("div", { class: "cauldron" },
           h("div", { class: "brew" }, h("i"), h("i"), h("i"), h("i")),
           h("div", { class: "pot" }),
           h("div", { class: "fire" })),
-        h("div", { class: "room-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl)),
-      h("div", { class: "store" }, pileEl));
+        h("div", { class: "room-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl,
+          h("div", { class: "muted small", text: "휠로 아래까지 내려 볼 수 있어요" }))),
+      store, peek);
 
-    pileEl.addEventListener("click", (e) => {
+    world.addEventListener("click", (e) => {
       const b = e.target.closest("[data-pile]");
       if (b) { ctx.takeFromPile(roomIdx, +b.dataset.pile); return; }
-      // 바닥 클릭: 선택한 인벤토리 약병을 그 열에 내려놓기
-      const rect = pileEl.getBoundingClientRect();
-      const col = Math.max(0, Math.min(PILE_COLUMNS - 1, Math.floor(((e.clientX - rect.left) / rect.width) * PILE_COLUMNS)));
-      ctx.dropToPile(roomIdx, col);
+      // 빈 곳 클릭: 선택한 인벤토리 약병을 그 위치(더미보다 위)에서 떨어뜨림
+      const rect = world.getBoundingClientRect();
+      const x = Math.max(20, Math.min(FLOOR_W - 20, (e.clientX - rect.left) / scale));
+      const y = Math.min((e.clientY - rect.top) / scale, heapTopNear(x) - BOTTLE_H);
+      ctx.dropToPile(roomIdx, { x, y });
     });
+
+    // 마우스를 올리면 크게 보기
+    world.addEventListener("mouseover", (e) => {
+      const b = e.target.closest("[data-pile]");
+      if (!b) { peek.classList.remove("show"); return; }
+      peek.replaceChildren(vial(ctx.game.item(+b.dataset.pile)));
+      peek.classList.add("show");
+    });
+    world.addEventListener("mousemove", (e) => {
+      peek.style.left = e.clientX + 18 + "px";
+      peek.style.top = e.clientY - 50 + "px";
+    });
+    world.addEventListener("mouseleave", () => peek.classList.remove("show"));
     return root;
-  }
-
-  function update() {
-    const g = ctx.game;
-    const cols = g.s.piles[roomIdx];
-    countEl.textContent = g.pileCount(roomIdx);
-
-    const W = pileEl.clientWidth || 1000;
-    const H = pileEl.clientHeight || 500;
-    const colW = W / PILE_COLUMNS;
-    const maxH = PILE_MAX_HEIGHT; // 크기를 고정해 두어야 병을 뺄 때 전체 크기가 바뀌지 않음
-    // 위 병이 아래 병을 절반 넘게 가리지 않도록: 층 간격 ≥ 병 높이의 절반
-    const fitBh = H / (1 + 0.6 * (maxH - 1)); // 기울기 여유 포함
-    const bw = Math.max(16, Math.min(40, colW * 0.72, fitBh / 1.9));
-    const bh = bw * 1.9;
-    const step = maxH > 1 ? Math.min(bh * 0.66, (H - bh) / (maxH - 1)) : 0;
-    pileEl.style.setProperty("--vw", bw + "px");
-
-    const alive = new Set();
-    cols.forEach((col, ci) => {
-      col.forEach((id, k) => {
-        alive.add(id);
-        let el = els.get(id);
-        const item = g.item(id);
-        if (!el) {
-          el = h("div", { class: "pile-item", "data-pile": id });
-          el.append(vial(item));
-          pileEl.append(el);
-          els.set(id, el);
-        }
-        // 흐트러짐: 좌우로 밀리고, 조금씩 높낮이가 다르고, 기울어짐
-        const T = PILE_TUNE;
-        const x = ci * colW + (colW - bw) / 2 + jitter(id, 1) * colW * T.x;
-        const y = k * step + (k ? (jitter(id, 2) + 0.5) * step * T.y : 0);
-        el.style.left = x + "px";
-        el.style.bottom = y + "px";
-        el.style.zIndex = Math.round(y); // 위에 쌓인(높은) 병이 앞에
-        el.style.setProperty("--rot", jitter(id, 3) * 2 * T.rot + "deg");
-        el.classList.toggle("top", k === col.length - 1);
-      });
-    });
-    for (const [id, el] of els) {
-      if (!alive.has(id)) { el.remove(); els.delete(id); }
-    }
   }
 
   return {
     mount(container, r) {
+      stop();
+      engine = newEngine();
       container.replaceChildren(build(r));
-      requestAnimationFrame(() => {
-        // 첫 배치는 애니메이션 없이
-        pileEl.classList.add("no-anim");
-        update();
-        requestAnimationFrame(() => pileEl.classList.remove("no-anim"));
-      });
+      measure();
+      const list = ctx.game.s.floor[r];
+      for (const e of list) if (e.x != null && !e.drop) makeBody(e.id, e.x, e.y, e.a);
+      const unplaced = list.filter((e) => e.x == null && !e.drop);
+      if (unplaced.length) settleUnplaced(unplaced);
+      for (const id of bodies.keys()) elFor(id);
+      sync(); // 떨어지던 중에 저장된 병 처리
+      // 더미 꼭대기가 보이도록 스크롤
+      const top = Math.min(FLOOR_H, ...[...bodies.values()].map((b) => b.bounds.min.y));
+      store.scrollTop = Math.max(0, top * scale - 40);
     },
-    update() { if (root?.isConnected) update(); },
+    update() { if (root?.isConnected) sync(); },
+    resize() {
+      if (!root?.isConnected) return;
+      measure();
+      draw();
+    },
+    unmount() {
+      if (raf) { stop(); persist(); } // 떨어지던 중이면 지금 위치라도 저장
+    },
     get room() { return roomIdx; },
   };
 }

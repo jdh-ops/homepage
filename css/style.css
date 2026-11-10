@@ -20,7 +20,7 @@ body {
   font-family: system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
   font-size: 14px;
   display: grid;
-  grid-template-rows: 56px minmax(0, 1fr) 196px;
+  grid-template-rows: 56px minmax(0, 1fr) 214px;
   min-width: 1100px;
   overflow: hidden;
   user-select: none;
@@ -94,9 +94,9 @@ b { font-weight: 700; }
   min-width: 260px;
 }
 .inv-head { margin-bottom: 6px; }
-.inv-slots { display: grid; grid-template-columns: repeat(6, 54px); gap: 6px; }
-.inv-slot { width: 54px; height: 66px; }
-.inv-slot .vial { --vw: 26px; }
+.inv-slots { display: grid; grid-template-columns: repeat(6, 60px); gap: 6px; }
+.inv-slot { width: 60px; height: 76px; }
+.inv-slot .vial { --vw: 32px; }
 
 /* ---------- 칸 / 약병 ---------- */
 .slot {
@@ -173,10 +173,10 @@ b { font-weight: 700; }
   /* 병 가운데 세로 띠지: 라벨 색 바탕 + 요일 한자 */
   position: absolute;
   left: 50%;
-  top: 40%;
-  bottom: 11%;
+  top: 36%;
+  bottom: 9%;
   transform: translateX(-50%);
-  width: 42%;
+  width: 52%;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -186,7 +186,7 @@ b { font-weight: 700; }
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), 0 1px 3px rgba(0, 0, 0, 0.5);
   color: #fff;
   font-family: "Noto Serif KR", "Batang", "SimSun", serif;
-  font-size: calc(var(--vw) * 0.38);
+  font-size: calc(var(--vw) * 0.44);
   font-weight: 900;
   line-height: 1;
   text-shadow: 0 0 2px #000, 0 0 2px #000, 0 0 1px #000;
@@ -263,24 +263,49 @@ b { font-weight: 700; }
   position: relative;
   margin: 0 20px 12px;
   border-radius: 14px 14px 6px 6px;
-  background:
-    linear-gradient(rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.1)),
-    repeating-linear-gradient(90deg, var(--wood2) 0 2px, var(--wood) 2px 120px);
   border: 2px solid #2d1f15;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;            /* 스크롤바 숨김 (휠로 스크롤) */
+  overscroll-behavior: contain;
+  background: #2a1d14;
 }
-.pile { position: absolute; inset: 10px 14px 6px; cursor: default; }
+.store::-webkit-scrollbar { display: none; }
+.floor-world {
+  position: relative;
+  min-height: 100%;
+  cursor: default;
+  background:
+    linear-gradient(rgba(0, 0, 0, 0.45), rgba(0, 0, 0, 0.05) 30%, rgba(0, 0, 0, 0.3)),
+    repeating-linear-gradient(90deg, var(--wood2) 0 2px, var(--wood) 2px 120px);
+}
 .pile-item {
   position: absolute;
-  transform: rotate(var(--rot, 0deg));
-  transform-origin: 50% 100%;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 50%;
   cursor: pointer;
-  transition: bottom 0.38s cubic-bezier(0.55, 0, 1, 0.45), left 0.2s;
+  will-change: transform;
   filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5));
 }
-.pile-item:hover { filter: drop-shadow(0 0 6px #fff) brightness(1.15); z-index: 999 !important; }
-.pile.no-anim .pile-item { transition: none; }
-.pile .vial { --vw: inherit; width: var(--vw); }
+.pile-item:hover { filter: drop-shadow(0 0 5px #fff) brightness(1.15); }
+.floor-world .vial { --vw: inherit; }
+.room-caption .small { font-size: 12px; margin-top: 2px; }
+
+/* 조제실: 마우스를 올린 약병 크게 보기 */
+.pile-peek {
+  position: fixed;
+  z-index: 60;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(20, 14, 38, 0.92);
+  border: 1px solid var(--line);
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+.pile-peek.show { opacity: 1; }
+.pile-peek .vial { --vw: 52px; }
 
 /* ---------- 작업실 ---------- */
 .workshop {
@@ -295,8 +320,8 @@ b { font-weight: 700; }
 .cross-v { left: 50%; top: 8px; bottom: 8px; width: 2px; }
 .cross-h { top: 50%; left: 8px; right: 8px; height: 2px; }
 .zone .slots { display: flex; flex-wrap: wrap; gap: 8px; }
-.zone .slot { width: 52px; height: 74px; --vw: 28px; }
-.zone .slot .vial { --vw: 28px; }
+.zone .slot { width: 60px; height: 88px; }
+.zone .slot .vial { --vw: 36px; }
 .zone-locked {
   height: calc(100% - 30px);
   display: grid;
@@ -388,7 +413,7 @@ b { font-weight: 700; }
 .st-num.done { color: var(--gold); font-size: 16px; }
 .st-cell {
   position: relative;
-  height: 66px;
+  height: 76px;
   display: grid;
   place-items: center;
   border-radius: 6px;
@@ -398,7 +423,7 @@ b { font-weight: 700; }
   --vw: 26px;
 }
 .st-cell:hover { border-color: rgba(255, 255, 255, 0.35); }
-.st-cell .vial { --vw: 26px; }
+.st-cell .vial { --vw: 32px; }
 .st-cell.bad { background: linear-gradient(transparent 85%, #7a1f29 85%), rgba(255, 60, 80, 0.32); border-color: var(--bad); }
 .st-cell.locked { background: linear-gradient(transparent 85%, #8c6a2a 85%), rgba(232, 196, 106, 0.12); cursor: default; }
 

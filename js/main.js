@@ -4,7 +4,7 @@ import {
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
 import { $, h, vial, locKey, parseLoc, toast, delay } from "./ui/common.js";
-import { createBreweryView, PILE_TUNE } from "./ui/brewery.js";
+import { createBreweryView } from "./ui/brewery.js";
 import { renderWorkshop } from "./ui/workshop.js";
 import { renderShelves } from "./ui/shelves.js";
 
@@ -38,12 +38,13 @@ const ctx = {
     if (ui.busy) return;
     if (!game.takeFromPile(room, id)) toast("인벤토리가 가득 찼어요.");
   },
-  dropToPile(room, col) {
+  saveSoon() { scheduleSave(); },
+  dropToPile(room, pos) {
     if (ui.busy || !ui.sel) return;
     if (ui.sel.a !== "inv") { ui.sel = null; refresh(); return; }
     const it = game.item(game.itemAt(ui.sel));
     if (it?.t !== "b") { toast("플라스크는 바닥에 내려놓을 수 없어요."); return; }
-    if (game.dropToPile(ui.sel, room, col)) ui.sel = null;
+    if (game.dropToPile(ui.sel, room, pos)) ui.sel = null;
     refresh();
   },
   openShelf(c) {
@@ -102,6 +103,7 @@ function renderRoom() {
     else breweryView.update();
     return;
   }
+  if (mountedRoom?.startsWith("brewery")) breweryView.unmount();
   mountedRoom = room;
   const scroll = $("#view .zoom-scroll")?.scrollTop ?? 0;
   if (room === "workshop") view.replaceChildren(renderWorkshop(ctx));
@@ -240,11 +242,8 @@ function quickMove(loc) {
     if (game.s.room === "workshop") dst = game.firstFree(it.t === "f" ? "flask" : "rack", id);
     else if (game.s.room.startsWith("brewery") && it.t === "f") { toast("플라스크는 바닥에 버릴 수 없어요."); return; }
     else if (game.s.room.startsWith("brewery")) {
-      const r = +game.s.room.slice(7);
-      const cols = game.s.piles[r];
-      const col = cols.reduce((best, c, i) => (c.length < cols[best].length ? i : best), 0);
       ui.sel = null;
-      game.dropToPile(loc, r, col);
+      game.dropToPile(loc, +game.s.room.slice(7)); // 더미 위쪽 아무 데나
       return;
     }
   } else {
@@ -261,7 +260,7 @@ document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-loc]");
   if (el) { onLoc(parseLoc(el.dataset.loc)); return; }
   // 빈 곳 클릭 → 선택 해제 (조제실 바닥은 내려놓기에 쓰므로 제외)
-  if (ui.sel && e.target.closest("#view") && !e.target.closest(".pile")) { ui.sel = null; refresh(); }
+  if (ui.sel && e.target.closest("#view") && !e.target.closest(".floor-world")) { ui.sel = null; refresh(); }
 });
 document.addEventListener("contextmenu", (e) => {
   if (!e.target.closest("#view, .inventory")) return;
@@ -479,7 +478,7 @@ function stepRoom(dir) {
   if ($("#mapOverlay").classList.contains("show")) renderMap();
 }
 
-window.addEventListener("resize", () => { if (game.s.room.startsWith("brewery")) breweryView.update(); });
+window.addEventListener("resize", () => breweryView.resize());
 
 // ---------- 저장 / 알림 ----------
 let saveTimer = 0;
@@ -520,5 +519,3 @@ try {
 
 // 디버그/테스트용
 window.__game = () => game;
-window.__pileTune = PILE_TUNE;
-window.__pileRedraw = () => breweryView.update();

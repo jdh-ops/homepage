@@ -16,8 +16,11 @@ export const UNITS_PER_BOTTLE = 4;
 export const BOTTLES_PER_LABEL = 30;            // 색-요일 조합마다 30병 → 7×7×30 = 1470
 export const SHELF_ROWS = 30;
 export const BREWERY_COUNT = 5;                 // 조제실 5곳, 294병씩
-export const PILE_COLUMNS = 28;                 // 조제실 창고 더미 열 수
-export const PILE_MAX_HEIGHT = 16;              // 한 열 최대 높이 (병마다 절반 이상 보이게)
+// 조제실 창고 (물리 엔진 단위. 화면 너비에 맞춰 확대해서 그림)
+export const FLOOR_W = 900;
+export const FLOOR_H = 620;                     // 화면보다 깊어서 세로 스크롤
+export const BOTTLE_W = 24;
+export const BOTTLE_H = 46;
 
 // ---------- 경험치 / 레벨 ----------
 // 선반 한 행(7병)을 오류 없이 채우면 ROW_XP.
