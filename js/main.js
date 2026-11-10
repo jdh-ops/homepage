@@ -128,7 +128,7 @@ function renderInfo() {
   const room = game.s.room;
   let help = "";
   if (room.startsWith("brewery")) help = "약병을 클릭하면 인벤토리로 가져와요. R: 선택한 약병을 바닥에 버리기. 우클릭: 선택한 병의 내용물을 다른 병에 붓기.";
-  else if (room === "workshop") help = "클릭: 병 선택 / 빈 칸으로 옮기기. 우클릭: 선택한 병의 내용물을 다른 병·물통에 붓기. R: 선택한 병을 거치대(플라스크는 1구역)로.";
+  else if (room === "workshop") help = "클릭: 인벤토리 ↔ 1구역(플라스크)·2구역(약병) 이동. 우클릭: 병 선택 → 다른 병·물통을 우클릭하면 붓기 (같은 병을 다시 우클릭하면 선택 해제).";
   else help = ui.shelf == null ? "선반을 클릭하면 크게 볼 수 있어요." : "인벤토리 약병을 고른 뒤 빈 칸을 클릭해 올려요. 선반의 약병을 고른 뒤 인벤토리 빈칸을 클릭하면 되돌려요.";
   const sel = describeSel();
   $("#info").replaceChildren(
@@ -180,6 +180,11 @@ async function doPour(src, dst, n) {
 function onLoc(loc) {
   if (ui.busy) return;
   const sel = ui.sel;
+  // 작업실: 클릭 = 인벤토리 ↔ 1·2구역 이동 (선택은 우클릭)
+  if (game.s.room === "workshop" && (loc.a === "inv" || loc.a === "flask" || loc.a === "rack") && locHas(loc)) {
+    quickMove(loc);
+    return;
+  }
   if (!sel) {
     if (locHas(loc)) { ui.sel = loc; refresh(); }
     return;
@@ -202,8 +207,12 @@ function onLoc(loc) {
 function pourInto(loc) {
   if (ui.busy) return;
   const sel = ui.sel;
-  if (!sel) { toast("먼저 부을 병을 클릭해서 선택하세요."); return; }
-  if (sameLoc(sel, loc)) return;
+  if (!sel) {
+    // 선택한 게 없으면 우클릭한 병을 선택
+    if (locHas(loc)) { ui.sel = loc; refresh(); }
+    return;
+  }
+  if (sameLoc(sel, loc)) { ui.sel = null; refresh(); return; }
   if (sel.a === "shelf" || loc.a === "shelf") { toast("선반의 약병에는 붓거나 따를 수 없어요."); return; }
   if (loc.a !== "drum" && game.itemAt(loc) == null) { toast("빈자리에는 부을 수 없어요. 병이나 물통을 우클릭하세요."); return; }
   const n = game.pourAmount(sel, loc);
@@ -250,8 +259,9 @@ function quickMove(loc) {
     dst = game.firstFree("inv", id);
   }
   if (!dst) { toast(loc.a !== "inv" ? "인벤토리가 가득 찼어요." : it.t === "f" ? "1구역에 빈 플라스크 자리가 없어요." : "거치대에 빈자리가 없어요."); return; }
+  // 선택돼 있던 병을 옮기면 선택도 따라감
   const prevSel = ui.sel;
-  ui.sel = null;
+  if (prevSel && sameLoc(prevSel, loc)) ui.sel = dst;
   if (!game.move(loc, dst)) { ui.sel = prevSel; toast(moveFailReason(loc, dst)); }
 }
 
