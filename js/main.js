@@ -319,6 +319,7 @@ function quickMove(loc) {
 // ---------- 드래그: 병(또는 물통)을 끌어서 다른 병·물통에 놓으면 붓기, 빈 칸에 놓으면 옮기기 ----------
 // 마우스: 왼쪽 버튼으로 끌기. 휴대폰: 0.25초 길게 누른 뒤 끌기 (그냥 밀면 화면 스크롤)
 let lastPointerType = "mouse";
+const TOUCH_HOLD_MS = 120; // 작업실·선반에서 손가락으로 끌기 전에 누르고 있을 시간
 let drag = null;
 let suppressClick = false;
 
@@ -396,16 +397,18 @@ document.addEventListener("pointerdown", (e) => {
   if (e.pointerType === "mouse" && e.button !== 0) return;
   const src = dragSourceAt(e.target);
   if (!src) return;
-  drag = { src, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId, active: false, armed: e.pointerType === "mouse" };
-  if (e.pointerType !== "mouse") {
-    drag.timer = setTimeout(() => { if (drag) { drag.armed = true; startDrag(); navigator.vibrate?.(15); } }, 250);
+  // 인벤토리는 스크롤할 일이 없으니 손가락도 바로 끌기. 나머지(작업실·선반)는 짧게 누른 뒤 끌기 (그냥 밀면 스크롤)
+  const immediate = e.pointerType === "mouse" || !!e.target.closest(".inventory");
+  drag = { src, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId, active: false, armed: immediate };
+  if (!immediate) {
+    drag.timer = setTimeout(() => { if (drag) { drag.armed = true; startDrag(); navigator.vibrate?.(15); } }, TOUCH_HOLD_MS);
   }
 });
 document.addEventListener("pointermove", (e) => {
   if (!drag || e.pointerId !== drag.id) return;
   drag.x = e.clientX; drag.y = e.clientY;
   const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
-  if (!drag.armed) { if (dist > 8) { clearTimeout(drag.timer); drag = null; } return; } // 휴대폰: 길게 누르기 전에 밀면 스크롤
+  if (!drag.armed) { if (dist > 12) { clearTimeout(drag.timer); drag = null; } return; } // 휴대폰: 누르기 전에 밀면 스크롤
   if (!drag.active && dist > 6) startDrag();
   if (drag.active) moveGhost(e.clientX, e.clientY);
 });

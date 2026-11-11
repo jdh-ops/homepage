@@ -724,3 +724,5 @@ body.mobile .skill .pips { display: none; }
 .toggle-row { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; font-size: 14px !important; }
 .toggle-row input { width: 18px; height: 18px; }
 body.mobile .mobile-only[hidden] { display: none; }
+/* 인벤토리 칸은 손가락으로 바로 끌 수 있게 (브라우저 스크롤·확대 제스처 끔) */
+.inv-slot { touch-action: none; }
