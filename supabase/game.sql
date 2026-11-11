@@ -86,6 +86,8 @@ begin
   select * into p from public.players where nick_key = lower(btrim(p_nick));
   if not found or p.pw_hash <> crypt(p_pw, p.pw_hash) then raise exception 'invalid_login'; end if;
   update public.players set last_seen = now() where id = p.id returning * into p;
+  -- 한 계정은 한 곳에서만: 다른 기기의 로그인은 끊음 (그 기기는 다음 저장 때 로그인 화면으로)
+  delete from public.player_sessions where player_id = p.id;
   insert into public.player_sessions (player_id) values (p.id) returning token into t;
   return json_build_object('token', t, 'account', public.game_account_json(p));
 end;

@@ -20,7 +20,7 @@ const MESSAGES = {
   invalid_login: "닉네임 또는 비밀번호가 틀려요.",
   bad_nickname: NICK_RULE,
   bad_password: `비밀번호는 ${PW_MIN}자 이상이어야 해요.`,
-  invalid_session: "로그인이 만료됐어요. 다시 로그인해 주세요.",
+  invalid_session: "다른 곳에서 로그인해서(또는 로그인이 만료돼서) 로그아웃됐어요.",
   save_too_large: "세이브가 너무 커요.",
 };
 
@@ -50,6 +50,23 @@ async function rpc(fn, args, opts = {}) {
     throw Object.assign(new Error(MESSAGES[code] || "문제가 생겼어요: " + (body?.message || res.status)), { code });
   }
   return body;
+}
+
+// ---------- 세이브 압축 (gzip → base64). 약 13KB → 약 8KB ----------
+async function gzipJson(obj) {
+  if (typeof CompressionStream === "undefined") return obj; // 오래된 브라우저: 그대로
+  const stream = new Blob([JSON.stringify(obj)]).stream().pipeThrough(new CompressionStream("gzip"));
+  const buf = new Uint8Array(await new Response(stream).arrayBuffer());
+  let bin = "";
+  for (let i = 0; i < buf.length; i += 0x8000) bin += String.fromCharCode(...buf.subarray(i, i + 0x8000));
+  return { z: btoa(bin) };
+}
+
+async function gunzipJson(data) {
+  if (!data?.z) return data;
+  const bytes = Uint8Array.from(atob(data.z), (c) => c.charCodeAt(0));
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(stream).text());
 }
 
 const toAccount = (a) => a && { id: a.id, nickname: a.nickname, createdAt: a.created_at, lastSeen: a.last_seen };
@@ -92,15 +109,15 @@ export async function signOut() {
 export async function loadSave() {
   if (mock()) return mock().loadSave();
   const r = await rpc("game_load", { p_token: getToken() });
-  return r ? { data: r.data, updatedAt: Date.parse(r.updated_at) } : null;
+  return r ? { data: await gunzipJson(r.data), updatedAt: Date.parse(r.updated_at) } : null;
 }
 
 export async function writeSave(account, data, updatedAt) {
   if (mock()) return mock().writeSave(account, data, updatedAt);
-  await rpc("game_save", { p_token: getToken(), p_data: data, p_updated_at: new Date(updatedAt).toISOString() });
+  await rpc("game_save", { p_token: getToken(), p_data: await gzipJson(data), p_updated_at: new Date(updatedAt).toISOString() });
 }
 
-/** 페이지를 닫을 때: 응답을 기다리지 않고 보냄 */
+/** 페이지를 닫을 때: 응답을 기다리지 않고 보냄 (압축은 비동기라 기다릴 수 없어서 그대로 보냄) */
 export function writeSaveOnExit(account, data, updatedAt) {
   if (mock()) return mock().writeSave(account, data, updatedAt);
   rpc("game_save", { p_token: getToken(), p_data: data, p_updated_at: new Date(updatedAt).toISOString() }, { keepalive: true })

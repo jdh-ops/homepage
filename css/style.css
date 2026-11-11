@@ -205,67 +205,8 @@ b { font-weight: 700; }
 .room-caption { font-size: 15px; }
 
 /* ---------- 조제실 ---------- */
-.brewery { display: grid; grid-template-rows: 140px minmax(0, 1fr); }
-.cauldron-area {
-  position: relative;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-  gap: 24px;
-  padding-bottom: 10px;
-}
-.cauldron-area .room-caption { position: absolute; left: 20px; top: 14px; }
-.cauldron { position: relative; width: 190px; height: 124px; transform-origin: bottom; }
-.pot {
-  position: absolute;
-  left: 15px;
-  right: 15px;
-  bottom: 22px;
-  height: 92px;
-  border-radius: 20px 20px 90px 90px;
-  background: radial-gradient(ellipse at 35% 30%, #4a4458, #19161f 70%);
-  box-shadow: inset 0 6px 0 #5d566c;
-}
-.brew {
-  position: absolute;
-  left: 22px;
-  right: 22px;
-  top: 30px;
-  height: 22px;
-  border-radius: 50%;
-  background: radial-gradient(#9cff8a, #3fae5a);
-  z-index: 1;
-  filter: drop-shadow(0 0 12px rgba(120, 255, 140, 0.6));
-}
-.brew i {
-  position: absolute;
-  bottom: 6px;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  background: rgba(190, 255, 170, 0.85);
-  animation: bubble 2.4s ease-in infinite;
-}
-.brew i:nth-child(1) { left: 20%; }
-.brew i:nth-child(2) { left: 45%; animation-delay: 0.7s; width: 9px; height: 9px; }
-.brew i:nth-child(3) { left: 65%; animation-delay: 1.3s; }
-.brew i:nth-child(4) { left: 80%; animation-delay: 1.9s; width: 7px; height: 7px; }
-@keyframes bubble {
-  0% { transform: translateY(0) scale(0.4); opacity: 0; }
-  20% { opacity: 1; }
-  100% { transform: translateY(-50px) scale(1.1); opacity: 0; }
-}
-.fire {
-  position: absolute;
-  left: 60px;
-  right: 60px;
-  bottom: 0;
-  height: 28px;
-  border-radius: 50% 50% 8px 8px;
-  background: radial-gradient(ellipse at 50% 100%, #ffcf5a, #ff6a2b 45%, transparent 70%);
-  animation: flicker 0.5s infinite alternate;
-}
-@keyframes flicker { to { transform: scaleY(1.15); opacity: 0.85; } }
+.brewery { display: grid; grid-template-rows: auto minmax(0, 1fr); }
+.brewery-caption { padding: 12px 20px 8px; }
 .store {
   position: relative;
   margin: 0 20px 12px;
@@ -700,3 +641,85 @@ b { font-weight: 700; }
   font-size: 12.5px;
   line-height: 1.5;
 }
+
+/* ---------- 드래그 ---------- */
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 300; pointer-events: none; opacity: 0.85; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.5)); }
+.drag-ghost .vial { --vw: 36px; }
+.drag-drop { display: block; width: 26px; height: 26px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); background: var(--c); border: 2px solid #fff; }
+.drop-target { outline: 2px dashed var(--gold); outline-offset: 2px; }
+body.dragging, body.dragging * { cursor: grabbing !important; }
+.slot, .drum, .st-cell { -webkit-touch-callout: none; }
+
+/* =====================================================================
+   모바일 화면 (body.mobile) — 세로 화면
+   위: 현재 위치 · 레벨 · 진행도 · ☰   /   가운데: 방   /   아래: 인벤토리, < 1번 2번 >
+   ===================================================================== */
+.mobile-bar, .mobile-only { display: none; }
+body.mobile .mobile-only { display: flex; }
+body.mobile .pc-only { display: none; }
+
+body.mobile {
+  min-width: 0;
+  grid-template-rows: 48px minmax(0, 1fr) auto;
+  font-size: 13px;
+  height: 100dvh;
+}
+body.mobile .hud { gap: 8px; padding: 0 8px; }
+body.mobile .hud-room { font-size: 15px; min-width: 0; white-space: nowrap; }
+body.mobile .hud-xp { gap: 6px; flex: 1; justify-content: center; }
+body.mobile .xp-bar, body.mobile #btnMap, body.mobile #btnSkills { display: none; }
+body.mobile #btnMenu { position: relative; }
+body.mobile #menuBadge { position: absolute; right: -6px; top: -6px; margin: 0; }
+
+body.mobile .bottom { flex-direction: column; gap: 6px; padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); }
+body.mobile .info, body.mobile .side { display: none; }
+body.mobile .inventory { min-width: 0; padding: 6px 8px 8px; border-radius: 12px; }
+body.mobile .inv-head { font-size: 12px; margin-bottom: 4px; }
+body.mobile .inv-slots { grid-template-columns: repeat(6, 1fr); gap: 4px; }
+body.mobile .inv-slot { width: auto; height: 58px; }
+body.mobile .inv-slot .vial { --vw: 24px; }
+body.mobile .mobile-bar { display: grid; grid-template-columns: 52px 1fr 52px; gap: 6px; }
+body.mobile .nav-btn { font-size: 26px; line-height: 1; padding: 0; }
+body.mobile .mobile-skills .skill-bar { flex-direction: row; gap: 6px; }
+body.mobile .mobile-skills .skill-btn { flex: 1; min-width: 0; padding: 6px 8px; }
+
+/* 방 공통 */
+body.mobile #view { overflow-y: auto; -webkit-overflow-scrolling: touch; }
+body.mobile .room-caption { font-size: 13px; }
+
+/* 조제실 */
+body.mobile .brewery-caption { padding: 8px 10px 6px; }
+body.mobile .store { margin: 0 6px 6px; }
+
+/* 작업실: 1 → 2 → 3 → 4 구역 세로로 (스크롤) */
+body.mobile .workshop { position: static; display: block; }
+body.mobile .workshop .zone { overflow: visible; padding: 12px 10px; border-bottom: 2px solid rgba(232, 196, 106, 0.35); }
+body.mobile .cross-v, body.mobile .cross-h { display: none; }
+body.mobile .zone .slots { gap: 6px; }
+body.mobile .zone .slot { width: 52px; height: 76px; }
+body.mobile .zone .slot .vial { --vw: 30px; }
+body.mobile .zone-locked { height: 120px; }
+body.mobile .injectors { padding-left: 4px; gap: 8px; }
+
+/* 선반: 전체 보기는 숫자만 */
+body.mobile .shelves { position: static; padding: 10px; }
+body.mobile .shelf-cards { grid-template-columns: 1fr 1fr; gap: 8px; }
+body.mobile .shelf-card { padding: 10px 12px; }
+body.mobile .shelf-card .mini-grid { display: none; }
+body.mobile .shelf-card-sub { font-size: 13px; color: var(--text); }
+body.mobile .shelf-zoom { padding: 8px 6px 0; gap: 8px; }
+body.mobile .zoom-head { flex-wrap: wrap; gap: 8px; }
+body.mobile .zoom-head .muted { display: none; }
+body.mobile .shelf-table { grid-template-columns: 24px repeat(7, minmax(0, 1fr)); gap: 3px; }
+body.mobile .st-cell { height: 62px; }
+body.mobile .st-cell .vial { --vw: 22px; }
+
+/* 창 (지도·스킬·계정·로그인) */
+body.mobile .panel { width: calc(100vw - 20px) !important; max-height: calc(100dvh - 40px); padding: 14px; }
+body.mobile .map-grid { grid-template-rows: 90px 64px 160px; padding: 6px; gap: 4px; }
+body.mobile .map-room small { display: none; }
+body.mobile .skill { grid-template-columns: 1fr auto; gap: 8px; }
+body.mobile .skill .pips { display: none; }
+.toggle-row { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; font-size: 14px !important; }
+.toggle-row input { width: 18px; height: 18px; }
+body.mobile .mobile-only[hidden] { display: none; }

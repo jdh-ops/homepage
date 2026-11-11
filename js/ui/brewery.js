@@ -1,6 +1,6 @@
 // 조제실: 위쪽 가마솥, 아래쪽 창고 바닥에 물리 엔진으로 쌓인 약병 더미.
 // 창고는 화면보다 깊어서 세로로 스크롤 (스크롤바는 숨김).
-import { FLOOR_W, FLOOR_H, BOTTLE_W, BOTTLE_H } from "../config.js";
+import { BOTTLE_W, BOTTLE_H } from "../config.js";
 import { h, vial } from "./common.js";
 
 const M = window.Matter;
@@ -12,6 +12,7 @@ const MAX_FALL_MS = 4000; // 이 시간이 지나면 떨어지던 병도 그 자
 
 export function createBreweryView(ctx) {
   let roomIdx = -1;
+  let FW = 900, FH = 620; // 바닥 크기(물리 단위). PC/모바일에 따라 mount 때 정함
   let root, store, world, countEl;
   let engine = null;
   let scale = 1;
@@ -27,9 +28,9 @@ export function createBreweryView(ctx) {
     e.velocityIterations = 6;
     const wall = (x, y, w, hh) => M.Bodies.rectangle(x, y, w, hh, { isStatic: true, friction: 0.8 });
     M.Composite.add(e.world, [
-      wall(FLOOR_W / 2, FLOOR_H + 50, FLOOR_W + 400, 100), // 바닥
-      wall(-50, FLOOR_H / 2 - 400, 100, FLOOR_H * 3),       // 왼쪽 벽
-      wall(FLOOR_W + 50, FLOOR_H / 2 - 400, 100, FLOOR_H * 3),
+      wall(FW / 2, FH + 50, FW + 400, 100), // 바닥
+      wall(-50, (FH - 6000) / 2, 100, FH + 6000),      // 왼쪽 벽 (위로 높게: 처음 쌓을 때 병이 위에서 떨어짐)
+      wall(FW + 50, (FH - 6000) / 2, 100, FH + 6000),
     ]);
     return e;
   }
@@ -65,7 +66,7 @@ export function createBreweryView(ctx) {
 
   /** x 근처 더미 꼭대기(가장 작은 y) */
   function heapTopNear(x, range = BOTTLE_H) {
-    let top = FLOOR_H;
+    let top = FH;
     for (const b of bodies.values()) {
       if (Math.abs(b.position.x - x) < range) top = Math.min(top, b.bounds.min.y);
     }
@@ -74,11 +75,11 @@ export function createBreweryView(ctx) {
 
   /** 처음 방에 들어왔을 때: 위치 없는 병들을 비처럼 떨어뜨려 화면 없이 쌓기 */
   function settleUnplaced(entries) {
-    const perRow = Math.floor(FLOOR_W / (BOTTLE_W * 1.6));
-    const base = Math.min(FLOOR_H, ...[...bodies.values()].map((b) => b.bounds.min.y)) - 40;
+    const perRow = Math.floor(FW / (BOTTLE_W * 1.6));
+    const base = Math.min(FH, ...[...bodies.values()].map((b) => b.bounds.min.y)) - 40;
     entries.forEach((e, i) => {
       const row = Math.floor(i / perRow), col = i % perRow;
-      const x = 20 + (col * (FLOOR_W - 40)) / perRow + Math.random() * 12;
+      const x = 20 + (col * (FW - 40)) / perRow + Math.random() * 12;
       const y = base - row * (BOTTLE_H + 14) - Math.random() * 20;
       makeBody(e.id, x, y, (Math.random() - 0.5) * 1.4, true);
     });
@@ -148,8 +149,8 @@ export function createBreweryView(ctx) {
 
   // ---------- 그리기 ----------
   function measure() {
-    scale = (store.clientWidth || 1000) / FLOOR_W;
-    world.style.height = FLOOR_H * scale + "px";
+    scale = (store.clientWidth || 1000) / FW;
+    world.style.height = FH * scale + "px";
     world.style.setProperty("--vw", BOTTLE_W * scale + "px");
   }
 
@@ -198,7 +199,7 @@ export function createBreweryView(ctx) {
     // 새로 떨어진 병
     for (const e of list) {
       if (bodies.has(e.id)) continue;
-      const x = e.x ?? 30 + Math.random() * (FLOOR_W - 60);
+      const x = e.x ?? 30 + Math.random() * (FW - 60);
       const y = e.y ?? heapTopNear(x) - BOTTLE_H;
       makeBody(e.id, x, y, (Math.random() - 0.5) * 0.6, true);
       elFor(e.id);
@@ -217,12 +218,7 @@ export function createBreweryView(ctx) {
     world = h("div", { class: "floor-world" });
     store = h("div", { class: "store" }, world);
     root = h("div", { class: "room brewery" },
-      h("div", { class: "cauldron-area" },
-        h("div", { class: "cauldron" },
-          h("div", { class: "brew" }, h("i"), h("i"), h("i"), h("i")),
-          h("div", { class: "pot" }),
-          h("div", { class: "fire" })),
-        h("div", { class: "room-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl)),
+      h("div", { class: "room-caption brewery-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl),
       store);
 
     world.addEventListener("click", (e) => {
@@ -230,7 +226,7 @@ export function createBreweryView(ctx) {
       if (b) { ctx.takeFromPile(roomIdx, +b.dataset.pile); return; }
       // 빈 곳 클릭: 선택한 인벤토리 약병을 그 위치(더미보다 위)에서 떨어뜨림
       const rect = world.getBoundingClientRect();
-      const x = Math.max(20, Math.min(FLOOR_W - 20, (e.clientX - rect.left) / scale));
+      const x = Math.max(20, Math.min(FW - 20, (e.clientX - rect.left) / scale));
       const y = Math.min((e.clientY - rect.top) / scale, heapTopNear(x) - BOTTLE_H);
       ctx.dropToPile(roomIdx, { x, y });
     });
@@ -241,6 +237,7 @@ export function createBreweryView(ctx) {
   return {
     mount(container, r) {
       stop();
+      ({ w: FW, h: FH } = ctx.floorSize());
       engine = newEngine();
       container.replaceChildren(build(r));
       measure();
@@ -252,7 +249,7 @@ export function createBreweryView(ctx) {
       draw();
       sync(); // 떨어지던 중에 저장된 병 처리
       // 더미 꼭대기가 보이도록 스크롤
-      const top = Math.min(FLOOR_H, ...[...bodies.values()].map((b) => b.bounds.min.y));
+      const top = Math.min(FH, ...[...bodies.values()].map((b) => b.bounds.min.y));
       store.scrollTop = Math.max(0, top * scale - 40);
     },
     update() { if (root?.isConnected) sync(); },

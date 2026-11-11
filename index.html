@@ -15,10 +15,10 @@
       <div class="xp-bar"><div class="xp-fill" id="hudXpFill"></div></div>
       <span class="muted" id="hudXpText"></span>
     </div>
-    <div class="hud-rows muted">완성한 행 <b id="hudRows">0</b></div>
+    <div class="hud-rows muted"><span class="pc-only">완성한 행 </span><b id="hudRows">0</b></div>
     <button class="btn" id="btnMap" title="지도 (M)">🗺 지도</button>
     <button class="btn" id="btnSkills" title="스킬 (K)">✦ 스킬 <span class="badge" id="skillBadge" hidden>0</span></button>
-    <button class="btn icon" id="btnMenu" title="메뉴">☰</button>
+    <button class="btn icon" id="btnMenu" title="메뉴">☰<span class="badge mobile-only" id="menuBadge" hidden>0</span></button>
   </header>
 
   <main id="view"></main>
@@ -32,6 +32,12 @@
     <div class="inventory">
       <div class="inv-head"><b>인벤토리</b> <span class="muted" id="invCount"></span></div>
       <div class="inv-slots" id="invSlots"></div>
+    </div>
+    <!-- 모바일: < 1번 스킬 2번 스킬 > -->
+    <div class="mobile-bar" id="mobileBar">
+      <button class="btn nav-btn" id="btnPrev" aria-label="이전">‹</button>
+      <div class="mobile-skills" id="mobileSkills"></div>
+      <button class="btn nav-btn" id="btnNext" aria-label="다음">›</button>
     </div>
   </footer>
 
@@ -68,7 +74,12 @@
         <dt>저장</dt><dd id="accSaved" class="muted">-</dd>
       </dl>
       <p class="warn-note" id="accWarn"></p>
+      <div class="menu-actions mobile-only">
+        <button class="btn" id="btnMenuMap">🗺 지도</button>
+        <button class="btn" id="btnMenuSkills">✦ 스킬 <span class="badge" id="menuSkillBadge" hidden>0</span></button>
+      </div>
       <div class="menu-actions">
+        <button class="btn" id="btnToggleMobile">📱 모바일 화면</button>
         <button class="btn" id="btnLogout">로그아웃</button>
         <button class="btn danger" id="btnNewGame">새 게임 시작 (리셋)</button>
         <button class="btn danger" id="btnDeleteAccount">계정 삭제</button>
@@ -99,6 +110,7 @@
       <p class="muted small-note signup-only" id="loginRule"></p>
       <p class="login-error" id="loginError"></p>
       <p class="warn-note" id="loginWarn"></p>
+      <label class="toggle-row"><input type="checkbox" id="loginMobile" /> 모바일 화면으로 보기</label>
       <button type="submit" class="btn primary" id="btnLoginSubmit">로그인</button>
     </form>
   </div>

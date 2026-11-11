@@ -19,6 +19,8 @@ export const BREWERY_COUNT = 5;                 // 조제실 5곳, 294병씩
 // 조제실 창고 (물리 엔진 단위. 화면 너비에 맞춰 확대해서 그림)
 export const FLOOR_W = 900;
 export const FLOOR_H = 620;                     // 화면보다 깊어서 세로 스크롤
+export const FLOOR_W_MOBILE = 330;              // 모바일: 좁고 깊은 바닥 (병이 작아지지 않게)
+export const FLOOR_H_MOBILE = 1050;
 export const BOTTLE_W = 24;
 export const BOTTLE_H = 46;
 

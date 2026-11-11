@@ -1,6 +1,6 @@
 import {
   COLORS, DAYS, SKILLS, SKILL_MAX, MAX_LEVEL, xpForLevel, ZONE3_LEVEL, ZONE4_LEVEL,
-  SAVE_KEY, SHELF_ROWS, POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
+  SAVE_KEY, SHELF_ROWS, FLOOR_W, FLOOR_H, FLOOR_W_MOBILE, FLOOR_H_MOBILE, POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
 import { encodeSave, decodeSave } from "./save-format.js";
@@ -44,6 +44,7 @@ const ctx = {
     if (!game.takeFromPile(room, id)) toast("인벤토리가 가득 찼어요.");
   },
   saveSoon() { scheduleSave(); },
+  floorSize() { return mobile ? { w: FLOOR_W_MOBILE, h: FLOOR_H_MOBILE } : { w: FLOOR_W, h: FLOOR_H }; },
   dropToPile(room, pos) {
     if (ui.busy || !ui.sel) return;
     if (ui.sel.a !== "inv") { ui.sel = null; refresh(); return; }
@@ -78,9 +79,11 @@ function renderHud() {
   $("#hudXpText").textContent = lv >= MAX_LEVEL ? `${game.s.xp} XP` : `${game.s.xp - a} / ${b - a} XP`;
   $("#hudRows").textContent = `${game.completedRows()}/${SHELF_ROWS * COLORS.length}`;
   const pts = game.skillPoints;
-  const badge = $("#skillBadge");
-  badge.textContent = pts;
-  badge.hidden = pts <= 0;
+  for (const id of ["#skillBadge", "#menuBadge", "#menuSkillBadge"]) {
+    const badge = $(id);
+    badge.textContent = pts;
+    badge.hidden = pts <= 0;
+  }
 }
 
 function renderInventory() {
@@ -101,6 +104,7 @@ function renderInventory() {
 let mountedRoom = null;
 function renderRoom() {
   const view = $("#view");
+  const viewScroll = view.scrollTop; // 모바일 작업실은 #view 가 스크롤됨
   const room = game.s.room;
   if (room.startsWith("brewery")) {
     const r = +room.slice(7);
@@ -115,7 +119,33 @@ function renderRoom() {
   else if (room === "shelves") view.replaceChildren(renderShelves(ctx, ui.shelf));
   const sc = $("#view .zoom-scroll");
   if (sc) sc.scrollTop = scroll;
+  view.scrollTop = viewScroll;
 }
+
+// ---------- PC / 모바일 화면 ----------
+const MOBILE_KEY = "witch-potion-mobile";
+function savedMobilePref() {
+  try { const v = localStorage.getItem(MOBILE_KEY); if (v != null) return v === "1"; } catch { /* 무시 */ }
+  return matchMedia("(max-width: 760px), (pointer: coarse)").matches; // 처음엔 기기에 맞춰
+}
+let mobile = savedMobilePref();
+
+function applyMode(m, initial = false) {
+  const changed = !initial && m !== document.body.classList.contains("mobile");
+  mobile = m;
+  try { localStorage.setItem(MOBILE_KEY, m ? "1" : "0"); } catch { /* 무시 */ }
+  document.body.classList.toggle("mobile", m);
+  // 스킬 버튼: 모바일은 아래 바(< 1 2 >), PC는 인벤토리 옆
+  (m ? $("#mobileSkills") : $(".side")).append($("#skillBar"));
+  $("#btnToggleMobile").textContent = m ? "🖥 PC 화면으로" : "📱 모바일 화면으로";
+  if (changed) {
+    // 바닥 크기가 바뀌므로 조제실 병을 다시 쌓음
+    for (const list of game.s.floor) for (const e of list) { e.x = null; e.y = null; delete e.drop; }
+    mountedRoom = null;
+    refresh();
+  }
+}
+applyMode(mobile, true);
 
 /** 선택한 병의 라벨만 (예: 주황 - 수) */
 function describeSel() {
@@ -286,6 +316,109 @@ function quickMove(loc) {
   if (!game.move(loc, dst)) { ui.sel = prevSel; toast(moveFailReason(loc, dst)); }
 }
 
+// ---------- 드래그: 병(또는 물통)을 끌어서 다른 병·물통에 놓으면 붓기, 빈 칸에 놓으면 옮기기 ----------
+// 마우스: 왼쪽 버튼으로 끌기. 휴대폰: 0.25초 길게 누른 뒤 끌기 (그냥 밀면 화면 스크롤)
+let lastPointerType = "mouse";
+let drag = null;
+let suppressClick = false;
+
+/** 끌기를 시작할 수 있는 것: 내용물이 있는 병(선반 제외) 또는 물통, 그리고 빈 칸으로 옮길 수 있는 병 */
+function dragSourceAt(target) {
+  const d = target.closest("[data-drum-in], [data-drum-out]");
+  if (d) {
+    const i = +(d.dataset.drumIn ?? d.dataset.drumOut);
+    return game.s.drums[i].u.length ? { a: "drum", i } : null;
+  }
+  const el = target.closest("[data-loc]");
+  if (!el) return null;
+  const loc = parseLoc(el.dataset.loc);
+  return game.itemAt(loc) != null ? loc : null;
+}
+
+/** 놓는 곳: 물통이면 물통, 아니면 칸 */
+function dropTargetAt(x, y) {
+  const t = document.elementFromPoint(x, y);
+  if (!t) return null;
+  const d = t.closest("[data-drum-in], [data-drum-out]");
+  if (d) return { loc: { a: "drum", i: +(d.dataset.drumIn ?? d.dataset.drumOut) }, el: d.closest(".drum") };
+  const el = t.closest("[data-loc]");
+  return el ? { loc: parseLoc(el.dataset.loc), el } : null;
+}
+
+function startDrag() {
+  drag.active = true;
+  const it = drag.src.a === "drum" ? null : game.item(game.itemAt(drag.src));
+  drag.ghost = h("div", { class: "drag-ghost" });
+  if (it) drag.ghost.append(vial(it));
+  else drag.ghost.append(h("i", { class: "drag-drop", "--c": COLORS[game.s.drums[drag.src.i].u.at(-1)].hex }));
+  document.body.append(drag.ghost);
+  moveGhost(drag.x, drag.y);
+  document.body.classList.add("dragging");
+}
+
+function moveGhost(x, y) {
+  drag.ghost.style.transform = `translate(${x - 20}px, ${y - 40}px)`;
+  const hit = dropTargetAt(x, y);
+  if (drag.hoverEl && drag.hoverEl !== hit?.el) drag.hoverEl.classList.remove("drop-target");
+  drag.hoverEl = hit && !sameLoc(hit.loc, drag.src) ? hit.el : null;
+  drag.hoverEl?.classList.add("drop-target");
+}
+
+function endDrag(x, y) {
+  const d = drag;
+  drag = null;
+  clearTimeout(d.timer);
+  if (!d.active) return;
+  d.ghost.remove();
+  d.hoverEl?.classList.remove("drop-target");
+  document.body.classList.remove("dragging");
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 0);
+  const hit = dropTargetAt(x, y);
+  if (!hit || sameLoc(hit.loc, d.src) || ui.busy) return;
+  const { src } = d, dst = hit.loc;
+  const dstIsContainer = dst.a === "drum" || (dst.a !== "shelf" && game.itemAt(dst) != null);
+  if (dstIsContainer) {
+    if (src.a === "shelf") { toast("선반의 약병에는 붓거나 따를 수 없어요."); return; }
+    const n = game.pourAmount(src, dst);
+    if (n) doPour(src, dst, n, src.a === "drum" ? dst : src);
+    else toast(src.a === "drum" && !game.s.drums[src.i].u.length ? "물통이 비어 있어요." : pourFailReason(src, dst));
+    return;
+  }
+  // 빈 칸: 옮기기
+  if (src.a === "drum") { toast("물통은 옮길 수 없어요. 병에 끌어다 놓으면 따라요."); return; }
+  if (!game.move(src, dst)) toast(moveFailReason(src, dst));
+}
+
+document.addEventListener("pointerdown", (e) => {
+  lastPointerType = e.pointerType;
+  if (!account || ui.busy || drag) return;
+  if (e.pointerType === "mouse" && e.button !== 0) return;
+  const src = dragSourceAt(e.target);
+  if (!src) return;
+  drag = { src, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId, active: false, armed: e.pointerType === "mouse" };
+  if (e.pointerType !== "mouse") {
+    drag.timer = setTimeout(() => { if (drag) { drag.armed = true; startDrag(); navigator.vibrate?.(15); } }, 250);
+  }
+});
+document.addEventListener("pointermove", (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  drag.x = e.clientX; drag.y = e.clientY;
+  const dist = Math.hypot(e.clientX - drag.x0, e.clientY - drag.y0);
+  if (!drag.armed) { if (dist > 8) { clearTimeout(drag.timer); drag = null; } return; } // 휴대폰: 길게 누르기 전에 밀면 스크롤
+  if (!drag.active && dist > 6) startDrag();
+  if (drag.active) moveGhost(e.clientX, e.clientY);
+});
+document.addEventListener("pointerup", (e) => { if (drag && e.pointerId === drag.id) endDrag(e.clientX, e.clientY); });
+document.addEventListener("pointercancel", (e) => {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (drag.active) endDrag(-1, -1); else { clearTimeout(drag.timer); drag = null; }
+});
+// 끄는 동안 화면이 스크롤되지 않게
+document.addEventListener("touchmove", (e) => { if (drag?.active) e.preventDefault(); }, { passive: false });
+// 끌고 난 뒤 따라오는 클릭은 무시
+document.addEventListener("click", (e) => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); suppressClick = false; } }, true);
+
 // 칸 클릭 (작업실, 선반, 인벤토리)
 document.addEventListener("click", (e) => {
   const valve = e.target.closest("[data-valve]");
@@ -298,6 +431,7 @@ document.addEventListener("click", (e) => {
 document.addEventListener("contextmenu", (e) => {
   if (!e.target.closest("#view, .inventory")) return;
   e.preventDefault(); // 게임 화면에서는 브라우저 메뉴 대신 붓기
+  if (lastPointerType === "touch") return; // 휴대폰 길게 누르기는 드래그로 처리
   const drumOut = e.target.closest("[data-drum-out]");
   const drumIn = e.target.closest("[data-drum-in]");
   if (drumOut) { drumPour(+drumOut.dataset.drumOut, "out"); return; }
@@ -475,7 +609,7 @@ function renderSkillBar() {
     const cd = Math.max(0, skillRt.cdUntil[id] - now);
     let state, frac = 0;
     if (lv === 0) {
-      state = "K에서 배울 수 있어요";
+      state = "스킬 창에서 배워요";
     } else if (active) {
       const total = s.values[lv - 1] * 1000;
       state = `켜짐 ${((skillRt.autoUntil - now) / 1000).toFixed(1)}초`;
@@ -521,6 +655,11 @@ function toggleOverlay(sel) {
 }
 
 $("#btnMap").addEventListener("click", () => toggleOverlay("#mapOverlay"));
+$("#btnMenuMap").addEventListener("click", () => toggleOverlay("#mapOverlay"));
+$("#btnMenuSkills").addEventListener("click", () => toggleOverlay("#skillOverlay"));
+$("#btnToggleMobile").addEventListener("click", () => { applyMode(!mobile); closeOverlay("#menuOverlay"); });
+$("#btnPrev").addEventListener("click", () => stepRoomOrShelf(-1));
+$("#btnNext").addEventListener("click", () => stepRoomOrShelf(1));
 $("#btnSkills").addEventListener("click", () => toggleOverlay("#skillOverlay"));
 $("#btnMenu").addEventListener("click", () => toggleOverlay("#menuOverlay"));
 document.querySelectorAll(".overlay").forEach((o) => {
@@ -606,7 +745,7 @@ function stepRoom(dir) {
 window.addEventListener("resize", () => breweryView.resize());
 
 // ---------- 저장 ----------
-// 이 기기에 바로 저장하고(0.4초 뒤), 서버에는 최대 20초에 한 번 + 방 이동·창 닫기 때 저장.
+// 이 기기에 바로 저장하고(0.4초 뒤), 서버에는 최대 20초에 한 번 + 창 닫기 때 저장 (압축해서 약 8KB).
 const CLOUD_EVERY_MS = 20000;
 const localKey = () => `witch-potion-save:${account.id}`;
 let saveTimer = 0, cloudTimer = 0, lastCloud = 0, cloudDirty = false, lastSavedAt = 0, cloudError = false;
@@ -635,7 +774,7 @@ async function flushCloud() {
   } catch (e) {
     cloudDirty = true; cloudError = true; // 다음에 다시 시도
     console.warn("서버 저장 실패", e);
-    if (e.code === "invalid_session") { toast(e.message); showLogin(); return; }
+    if (e.code === "invalid_session") { kicked(e.message); return; }
   }
   renderAccount();
 }
@@ -698,8 +837,28 @@ async function enterAccount(acc) {
   if (isNew) showIntro();
 }
 
+/** 다른 곳에서 로그인해서 이 기기의 로그인이 끊겼을 때: 이 기기 저장본은 버리고(서버 것이 최신) 로그인 화면으로 */
+function kicked(msg) {
+  if (!account) return;
+  try { localStorage.removeItem(localKey()); } catch { /* 무시 */ }
+  clearTimeout(cloudTimer); cloudTimer = 0; cloudDirty = false;
+  showLogin();
+  toast(msg);
+}
+
+// 1분마다 로그인이 살아 있는지 확인 (약 0.5KB)
+setInterval(async () => {
+  if (!account || document.visibilityState !== "visible") return;
+  try {
+    const acc = await cloud.getAccount();
+    if (!acc) kicked("다른 곳에서 로그인해서 로그아웃됐어요.");
+    else account.lastSeen = acc.lastSeen;
+  } catch { /* 연결 문제는 무시 */ }
+}, 60000);
+
 function showLogin() {
   account = null;
+  $("#loginMobile").checked = mobile;
   document.querySelectorAll(".overlay.show").forEach((o) => o.classList.remove("show"));
   $("#loginError").textContent = "";
   $("#loginPw").value = ""; $("#loginPw2").value = "";
@@ -734,6 +893,7 @@ $("#loginForm").addEventListener("submit", async (e) => {
   if (loginMode === "signup" && pw !== $("#loginPw2").value) return err("비밀번호 확인이 달라요.");
   const btn = $("#btnLoginSubmit");
   btn.disabled = true; err("");
+  applyMode($("#loginMobile").checked);
   try {
     const acc = loginMode === "signup" ? await cloud.signUp(nick, pw) : await cloud.signIn(nick, pw);
     await enterAccount(acc);
@@ -806,7 +966,6 @@ function bindGame() {
       toast(msg);
     }
     scheduleSave();
-    if (info.type === "room") flushCloud();
     refresh();
   });
 }
