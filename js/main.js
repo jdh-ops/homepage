@@ -26,7 +26,7 @@ const ui = {
 const ROOM_NAMES = {
   shelves: "선반",
   workshop: "작업실",
-  ...Object.fromEntries(Array.from({ length: BREWERY_COUNT }, (_, i) => [`brewery${i}`, `조제실 ${i + 1}`])),
+  ...Object.fromEntries(Array.from({ length: BREWERY_COUNT }, (_, i) => [`brewery${i}`, `창고 ${i + 1}`])),
 };
 
 // ---------- 화면에 넘기는 도구 ----------
@@ -139,7 +139,7 @@ function applyMode(m, initial = false) {
   (m ? $("#mobileSkills") : $(".side")).append($("#skillBar"));
   $("#btnToggleMobile").textContent = m ? "🖥 PC 화면으로" : "📱 모바일 화면으로";
   if (changed) {
-    // 바닥 크기가 바뀌므로 조제실 병을 다시 쌓음
+    // 바닥 크기가 바뀌므로 창고 병을 다시 쌓음
     for (const list of game.s.floor) for (const e of list) { e.x = null; e.y = null; delete e.drop; }
     mountedRoom = null;
     refresh();
@@ -276,12 +276,12 @@ function pourInto(loc) {
   else toast(pourFailReason(sel, loc));
 }
 
-/** R: 선택한 인벤토리 물건 버리기 (조제실: 바닥, 작업실: 거치대/플라스크 자리) */
+/** R: 선택한 인벤토리 물건 버리기 (창고: 바닥, 작업실: 거치대/플라스크 자리) */
 function discardSelected() {
   if (ui.busy) return;
   if (ui.sel?.a !== "inv" || game.itemAt(ui.sel) == null) { toast("인벤토리에서 버릴 병을 먼저 선택하세요 (Q/E)."); return; }
   const room = game.s.room;
-  if (!room.startsWith("brewery") && room !== "workshop") { toast("버리기는 조제실과 작업실에서만 할 수 있어요."); return; }
+  if (!room.startsWith("brewery") && room !== "workshop") { toast("버리기는 창고와 작업실에서만 할 수 있어요."); return; }
   const i = ui.sel.i;
   const id = game.itemAt(ui.sel);
   quickMove(ui.sel);
@@ -425,7 +425,7 @@ document.addEventListener("click", (e) => {
   if (valve) { openValve(+valve.dataset.valve); return; }
   const el = e.target.closest("[data-loc]");
   if (el) { onLoc(parseLoc(el.dataset.loc)); return; }
-  // 빈 곳 클릭 → 선택 해제 (조제실 바닥은 내려놓기에 쓰므로 제외)
+  // 빈 곳 클릭 → 선택 해제 (창고 바닥은 내려놓기에 쓰므로 제외)
   if (ui.sel && e.target.closest("#view") && !e.target.closest(".floor-world")) { ui.sel = null; refresh(); }
 });
 document.addEventListener("contextmenu", (e) => {
@@ -574,7 +574,7 @@ function useSkill(id) {
   if (now < skillRt.cdUntil[id]) { toast(`${s.name}: ${((skillRt.cdUntil[id] - now) / 1000).toFixed(1)}초 뒤에 쓸 수 있어요.`); return; }
 
   if (id === "summon") {
-    if (!game.s.room.startsWith("brewery")) { toast("부름은 조제실에서만 쓸 수 있어요."); return; }
+    if (!game.s.room.startsWith("brewery")) { toast("부름은 창고에서만 쓸 수 있어요."); return; }
     const it = ui.sel?.a === "inv" ? game.item(game.itemAt(ui.sel)) : null;
     if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/E)."); return; }
     const free = game.s.inv.slice(0, game.invSize).filter((x) => x == null).length;
@@ -727,7 +727,7 @@ function stepRoomOrShelf(dir) {
   stepRoom(dir);
 }
 
-/** A/D: 조제실 1~5 → 작업실 → 선반 → 조제실 1 순환 (잠근 방은 건너뜀) */
+/** A/D: 창고 1~5 → 작업실 → 선반 → 창고 1 순환 (잠근 방은 건너뜀) */
 const ROOM_ORDER = [...Array.from({ length: BREWERY_COUNT }, (_, i) => `brewery${i}`), "workshop", "shelves"];
 function stepRoom(dir) {
   if (ui.busy) return;

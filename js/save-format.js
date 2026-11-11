@@ -1,7 +1,7 @@
 // 세이브 압축 형식 (v2). 한 명당 약 15~20KB.
 // - 라벨(색·요일)은 저장하지 않고 시드로 다시 만든다.
 // - 병 내용물은 병마다 4글자("0"~"6", 빈칸 ".")로 이어 붙인 문자열 하나.
-// - 조제실 바닥 병 위치는 저장하지 않는다(방에 들어갈 때 다시 쌓음).
+// - 창고 바닥 병 위치는 저장하지 않는다(방에 들어갈 때 다시 쌓음).
 import { COLORS, DAYS, SHELF_ROWS, UNITS_PER_BOTTLE } from "./config.js";
 import { newGameState } from "./game.js";
 

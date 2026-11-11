@@ -52,7 +52,7 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
     flaskSlots[k] = id;
   }
 
-  // 조제실 5곳에 고르게 나눔. 위치(x, y, a)는 처음 방에 들어갈 때 물리 엔진이 쌓아서 정함
+  // 창고 5곳에 고르게 나눔. 위치(x, y, a)는 처음 방에 들어갈 때 물리 엔진이 쌓아서 정함
   const bottleIds = shuffle(labels.map((_, i) => i), rand);
   const per = Math.ceil(bottleIds.length / BREWERY_COUNT);
   const floor = [];
@@ -344,7 +344,7 @@ export class Game {
     return total;
   }
 
-  // ----- 조제실 바닥 -----
+  // ----- 창고 바닥 -----
   takeFromPile(room, id) {
     const list = this.s.floor[room];
     const k = list.findIndex((e) => e.id === id);

@@ -1,4 +1,4 @@
-// 조제실: 위쪽 가마솥, 아래쪽 창고 바닥에 물리 엔진으로 쌓인 약병 더미.
+// 창고: 바닥에 물리 엔진으로 쌓인 약병 더미.
 // 창고는 화면보다 깊어서 세로로 스크롤 (스크롤바는 숨김).
 import { BOTTLE_W, BOTTLE_H } from "../config.js";
 import { h, vial } from "./common.js";
@@ -218,7 +218,7 @@ export function createBreweryView(ctx) {
     world = h("div", { class: "floor-world" });
     store = h("div", { class: "store" }, world);
     root = h("div", { class: "room brewery" },
-      h("div", { class: "room-caption brewery-caption" }, h("b", { text: `조제실 ${r + 1}` }), " · 남은 약병 ", countEl),
+      h("div", { class: "room-caption brewery-caption" }, h("b", { text: `창고 ${r + 1}` }), " · 남은 약병 ", countEl),
       store);
 
     world.addEventListener("click", (e) => {

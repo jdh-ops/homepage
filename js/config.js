@@ -15,8 +15,8 @@ export const DAYS_HANJA = ["月", "火", "水", "木", "金", "土", "日"]; // 
 export const UNITS_PER_BOTTLE = 4;
 export const BOTTLES_PER_LABEL = 30;            // 색-요일 조합마다 30병 → 7×7×30 = 1470
 export const SHELF_ROWS = 30;
-export const BREWERY_COUNT = 5;                 // 조제실 5곳, 294병씩
-// 조제실 창고 (물리 엔진 단위. 화면 너비에 맞춰 확대해서 그림)
+export const BREWERY_COUNT = 5;                 // 창고 5곳, 294병씩
+// 창고 바닥 (물리 엔진 단위. 화면 너비에 맞춰 확대해서 그림)
 export const FLOOR_W = 900;
 export const FLOOR_H = 620;                     // 화면보다 깊어서 세로 스크롤
 export const FLOOR_W_MOBILE = 330;              // 모바일: 좁고 깊은 바닥 (병이 작아지지 않게)
