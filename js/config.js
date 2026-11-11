@@ -74,12 +74,12 @@ export const SKILLS = [
   {
     id: "summon", name: "부름", active: true, unlock: 1, start: 0,
     desc: "들고 있는 약병과 같은 라벨 색의 약병을 같은 방 바닥에서 인벤토리로 불러옴",
-    values: [2, 3, 4, 5, 6], unit: "병", cooldown: [20, 15, 12, 8, 5],
+    values: [2, 4, 6, 8, 10], unit: "병", cooldown: [60, 50, 40, 30, 10],
   },
   {
     id: "autoShelve", name: "자동 진열", active: true, unlock: 1, start: 0,
     desc: "지속시간 동안, 열어 둔 선반에 맞는 완성 약병을 인벤토리에서 꺼내 제자리에 넣음",
-    values: [10, 15, 20, 25, 30], unit: "초", cooldown: [20, 15, 12, 8, 5],
+    values: [5, 6, 7, 8, 10], unit: "초", cooldown: [60, 50, 40, 30, 10],
   },
 ];
 
