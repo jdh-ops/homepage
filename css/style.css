@@ -675,9 +675,10 @@ body.mobile .bottom { flex-direction: column; gap: 6px; padding: 6px 8px calc(6p
 body.mobile .info, body.mobile .side { display: none; }
 body.mobile .inventory { min-width: 0; padding: 6px 8px 8px; border-radius: 12px; }
 body.mobile .inv-head { font-size: 12px; margin-bottom: 4px; }
-body.mobile .inv-slots { grid-template-columns: repeat(6, 1fr); gap: 4px; }
-body.mobile .inv-slot { width: auto; height: 58px; }
-body.mobile .inv-slot .vial { --vw: 24px; }
+/* 칸 폭을 병에 맞춤 (넓게 늘이지 않음). 칸이 늘면 다음 줄로 */
+body.mobile .inv-slots { grid-template-columns: repeat(auto-fill, 44px); gap: 5px; }
+body.mobile .inv-slot { width: 44px; height: 64px; }
+body.mobile .inv-slot .vial { --vw: 28px; }
 body.mobile .mobile-bar { display: grid; grid-template-columns: 52px 1fr 52px; gap: 6px; }
 body.mobile .nav-btn { font-size: 26px; line-height: 1; padding: 0; }
 body.mobile .mobile-skills .skill-bar { flex-direction: row; gap: 6px; }
