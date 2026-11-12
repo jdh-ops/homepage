@@ -941,7 +941,8 @@ function renderAccount() {
   const until = account.lastSeen ? Date.parse(account.lastSeen) + cloud.INACTIVE_DAYS * 86400000 : null;
   $("#accWarn").textContent = WARN_TEXT + (until ? ` 지금 접속을 끊으면 ${fmt(until)} 이후 삭제돼요.` : "");
   $("#accShortId").textContent = `ID : ${account.nickname}`;
-  $("#accShortDel").textContent = until ? `(미접속 시 ${fmt(until)}에 삭제)` : "";
+  const short = (t) => { const d = new Date(t), p = (n) => String(n).padStart(2, "0"); return `${d.getMonth() + 1}/${d.getDate()} ${p(d.getHours())}:${p(d.getMinutes())}`; };
+  $("#accShortDel").textContent = until ? `(미접속 시 ${short(until)}에 삭제)` : "";
 }
 
 $("#btnLogout").addEventListener("click", async () => {

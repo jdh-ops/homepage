@@ -764,7 +764,7 @@ body.mobile .shelf-peek.done { display: block; font-size: 12px; color: var(--gol
 /* ---------- 모바일 ☰ 메뉴: 오른쪽에서 나오는 세로 서랍 ---------- */
 body.mobile #menuOverlay { place-items: stretch end; padding: 0; }
 body.mobile #menuOverlay .menu-panel {
-  width: min(62vw, 260px) !important;
+  width: max-content !important;   /* 가장 긴 버튼(PC 화면으로)이 한 줄에 들어가는 만큼만 */
   max-height: none;
   height: 100dvh;
   border-radius: 16px 0 0 16px;
@@ -785,3 +785,5 @@ body.mobile .acc-short { flex-direction: column; gap: 4px; font-size: 14px; line
 body.mobile .acc-short span { font-size: 12px; }
 body.mobile #menuOverlay .menu-actions { flex-direction: column; flex-wrap: nowrap; gap: 8px; margin: 0; }
 body.mobile #menuOverlay .menu-actions .btn { width: 100%; padding: 11px 12px; text-align: left; font-size: 14px; }
+body.mobile #menuOverlay .menu-actions .btn { white-space: nowrap; }
+body.mobile .acc-short { width: 0; min-width: 100%; } /* 긴 삭제 안내는 너비를 늘리지 않고 줄바꿈 */
