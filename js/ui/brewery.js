@@ -1,6 +1,6 @@
 // 창고: 바닥에 물리 엔진으로 쌓인 약병 더미.
 // 창고는 화면보다 깊어서 세로로 스크롤 (스크롤바는 숨김).
-import { BOTTLE_W, BOTTLE_H } from "../config.js";
+import { BOTTLE_W, BOTTLE_H, PICK_WAKE_RADIUS } from "../config.js";
 import { h, vial } from "./common.js";
 
 const M = window.Matter;
@@ -8,7 +8,7 @@ const STEP_MS = 1000 / 60;
 const MAX_FALL_MS = 4000; // 이 시간이 지나면 떨어지던 병도 그 자리에 고정
 
 // 렉 줄이기: 평소엔 모든 병을 고정(static)해 두고,
-// 병을 빼면 그 병과 닿아 있던 병, 그 병들과 닿아 있던 병까지만 풀어서 떨어뜨림 (더 번지지 않음)
+// 병을 빼면 그 병 중심에서 일정 거리 안의 병만 풀어서 떨어뜨림 (PICK_WAKE_RADIUS)
 
 export function createBreweryView(ctx) {
   let roomIdx = -1;
@@ -92,26 +92,12 @@ export function createBreweryView(ctx) {
     persist();
   }
 
-  /** b와 실제로 닿아 있는 병들 (아래에 깔린 병은 제외: 위·옆만) */
-  function touching(b, exclude) {
-    // 살짝(가장자리 4단위) 큰 모양으로 겹치는 병 = 닿아 있는 병
-    const probe = M.Bodies.rectangle(b.position.x, b.position.y, BOTTLE_W + 8, BOTTLE_H + 8, {
-      angle: b.angle, chamfer: { radius: 10 },
-    });
-    const near = [...bodies.values()].filter((o) =>
-      !exclude.has(o) && o.position.y < b.position.y + BOTTLE_H * 0.3 &&
-      M.Bounds.overlaps(o.bounds, probe.bounds));
-    return M.Query.collides(probe, near).map((c) => (c.bodyA === probe ? c.bodyB : c.bodyA));
-  }
-
-  /** 빠진 병과 닿아 있던 병 + 그 병들과 닿아 있던 병까지만 풀어 줌 (더 번지지 않음) */
-  function releaseTouching(removed) {
-    const seen = new Set([removed]);
-    const first = touching(removed, seen);
-    first.forEach((b) => seen.add(b));
-    const second = [];
-    for (const b of first) for (const o of touching(b, seen)) { seen.add(o); second.push(o); }
-    for (const b of [...first, ...second]) release(b);
+  /** 꺼낸 병 중심에서 일정 거리(PICK_WAKE_RADIUS) 안의 병만 풀어 줌 */
+  function releaseNear(removed) {
+    const { x, y } = removed.position;
+    for (const b of bodies.values()) {
+      if (b !== removed && Math.hypot(b.position.x - x, b.position.y - y) <= PICK_WAKE_RADIUS) release(b);
+    }
   }
 
   function persist() {
@@ -191,7 +177,7 @@ export function createBreweryView(ctx) {
       M.Composite.remove(engine.world, b);
       bodies.delete(id);
       active.delete(id);
-      releaseTouching(b);
+      releaseNear(b);
       els.get(id)?.remove();
       els.delete(id);
       changed = true;

@@ -271,7 +271,7 @@ b { font-weight: 700; }
 .drum-rim { height: 10px; margin: 0 -2px; border-radius: 50%; border: 2px solid #b9a98a; background: #3a3024; }
 .drum-body {
   position: relative;
-  height: 150px;               /* 레벨이 올라도 높이는 그대로 */
+  height: 75px;                /* 레벨이 올라도 높이는 그대로 */
   margin-top: -5px;
   border: 2px solid #b9a98a;
   border-top: none;

@@ -23,6 +23,8 @@ export const FLOOR_W_MOBILE = 330;              // 모바일: 좁고 깊은 바�
 export const FLOOR_H_MOBILE = 1050;
 export const BOTTLE_W = 24;
 export const BOTTLE_H = 46;
+// 창고에서 병을 꺼내면, 그 병 중심에서 이 거리(물리 단위) 안에 있는 병만 물리 엔진이 움직임
+export const PICK_WAKE_RADIUS = 100;  // 병 높이(46)의 약 2배
 
 // ---------- 경험치 / 레벨 ----------
 // 선반 한 행(7병)을 오류 없이 채우면 경험치 ROW_XP(=1). 즉 경험치 = 완성한 행 수.

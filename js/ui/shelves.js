@@ -14,11 +14,11 @@ function overview(ctx) {
       }
     }
     const rowsDone = g.s.lockedRows[c].filter(Boolean).length;
-    // 아직 완성하지 않은 행 중 앞쪽 3줄 미리보기 (모바일에서 보임)
+    // 아직 완성하지 않은 행 중 앞쪽 2줄 미리보기 (모바일에서 보임)
     const peek = h("div", { class: "shelf-peek" },
       h("span", { class: "pk-num" }), ...DAYS.map((d) => h("span", { class: "pk-day", text: d })));
     let shown = 0;
-    for (let r = 0; r < SHELF_ROWS && shown < 3; r++) {
+    for (let r = 0; r < SHELF_ROWS && shown < 2; r++) {
       if (g.s.lockedRows[c][r]) continue;
       shown++;
       peek.append(h("span", { class: "pk-num", text: r + 1 }));
