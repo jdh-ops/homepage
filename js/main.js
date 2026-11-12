@@ -297,9 +297,9 @@ function discardSelected() {
   const id = game.itemAt(ui.sel);
   quickMove(ui.sel);
   if (game.s.inv.includes(id)) return; // 못 버림
-  // 뒤 물약이 앞으로 당겨졌으니 같은 자리 = 다음 물약 (마지막이었으면 처음으로)
+  // 뒤 물약이 앞으로 당겨졌으니 같은 자리 = 다음 물약 (마지막이었으면 바로 앞 물약)
   const count = game.s.inv.filter((x) => x != null).length;
-  ui.sel = count ? { a: "inv", i: i < count ? i : 0 } : null;
+  ui.sel = count ? { a: "inv", i: i < count ? i : count - 1 } : null;
   refresh();
 }
 
@@ -975,7 +975,7 @@ function bindGame() {
     if (info.invMap && ui.sel?.a === "inv") {
       const count = game.s.inv.filter((x) => x != null).length;
       const i = ui.sel.i;
-      const ni = info.invMap[i] ?? (i < count ? i : count ? 0 : null); // 빠진 칸이면 그 자리(=다음 물약)
+      const ni = info.invMap[i] ?? (i < count ? i : count ? count - 1 : null); // 빠진 칸이면 그 자리(=다음 물약), 마지막이었으면 바로 앞 물약
       ui.sel = ni == null ? null : { a: "inv", i: ni };
     }
     // 인벤토리로 병이 들어오면 그 병을 선택 (부름은 마지막으로 들어온 병)
