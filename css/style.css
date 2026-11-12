@@ -786,4 +786,4 @@ body.mobile .acc-short span { font-size: 12px; }
 body.mobile #menuOverlay .menu-actions { flex-direction: column; flex-wrap: nowrap; gap: 8px; margin: 0; }
 body.mobile #menuOverlay .menu-actions .btn { width: 100%; padding: 11px 12px; text-align: left; font-size: 14px; }
 body.mobile #menuOverlay .menu-actions .btn { white-space: nowrap; }
-body.mobile .acc-short { width: 0; min-width: 100%; } /* 긴 삭제 안내는 너비를 늘리지 않고 줄바꿈 */
+body.mobile .acc-short span { white-space: pre; } /* 삭제 예정일은 정해진 두 줄. 모자라면 메뉴가 넓어짐 */
