@@ -47,6 +47,28 @@ export function createBreweryView(ctx) {
     active.set(b.plugin.id, performance.now());
   }
 
+  /** 위치가 깨진 병(숫자가 아니거나 바닥 밖으로 튄 병)을 더미 위로 다시 올려놓음.
+   *  이게 없으면 화면 좌상단(0,0)에 병들이 겹쳐 보임 */
+  function sanitize(b) {
+    const { x, y } = b.position;
+    const broken = !Number.isFinite(x) || !Number.isFinite(y) || !Number.isFinite(b.angle)
+      || x < -BOTTLE_W || x > FW + BOTTLE_W || y > FH + BOTTLE_H || y < -3000;
+    if (!broken) return false;
+    const nx = 30 + Math.random() * (FW - 60);
+    M.Body.setPosition(b, { x: nx, y: heapTopNear(nx, BOTTLE_H, b) - BOTTLE_H });
+    M.Body.setAngle(b, 0);
+    M.Body.setVelocity(b, { x: 0, y: 0 });
+    M.Body.setAngularVelocity(b, 0);
+    return true;
+  }
+
+  /** 너무 빨라진 병은 속도를 줄임 (겹친 병이 튕겨 나가며 폭주하는 것 방지) */
+  function capSpeed(b) {
+    const v = b.velocity, sp = Math.hypot(v.x, v.y), MAX = 25;
+    if (sp > MAX) M.Body.setVelocity(b, { x: (v.x / sp) * MAX, y: (v.y / sp) * MAX });
+    if (Math.abs(b.angularVelocity) > 0.4) M.Body.setAngularVelocity(b, Math.sign(b.angularVelocity) * 0.4);
+  }
+
   function makeBody(id, x, y, a, dynamic = false) {
     const b = M.Bodies.rectangle(x, y, BOTTLE_W, BOTTLE_H, {
       chamfer: { radius: 6 },
@@ -65,9 +87,10 @@ export function createBreweryView(ctx) {
   }
 
   /** x 근처 더미 꼭대기(가장 작은 y) */
-  function heapTopNear(x, range = BOTTLE_H) {
+  function heapTopNear(x, range = BOTTLE_H, skip = null) {
     let top = FH;
     for (const b of bodies.values()) {
+      if (b === skip || !Number.isFinite(b.bounds.min.y)) continue;
       if (Math.abs(b.position.x - x) < range) top = Math.min(top, b.bounds.min.y);
     }
     return top;
@@ -87,7 +110,7 @@ export function createBreweryView(ctx) {
       M.Engine.update(engine, STEP_MS);
       if (k > 60 && [...bodies.values()].every((b) => b.isStatic || b.isSleeping)) break;
     }
-    for (const b of bodies.values()) if (!b.isStatic) freeze(b);
+    for (const b of bodies.values()) { sanitize(b); if (!b.isStatic) freeze(b); }
     active.clear();
     persist();
   }
@@ -114,7 +137,10 @@ export function createBreweryView(ctx) {
       // 느린 컴퓨터에서도 같은 속도로: 밀린 만큼 여러 번 계산 (최대 2번)
       let n = Math.min(2, Math.max(1, Math.round((now - last) / STEP_MS)));
       last = now;
-      while (n--) M.Engine.update(engine, STEP_MS);
+      while (n--) {
+        M.Engine.update(engine, STEP_MS);
+        for (const id of active.keys()) { const b = bodies.get(id); if (b) { capSpeed(b); sanitize(b); } }
+      }
       draw(active.keys());
       // 멈췄거나 너무 오래 떨어지는 병은 고정
       for (const [id, t0] of active) {
@@ -146,8 +172,8 @@ export function createBreweryView(ctx) {
     for (const id of ids) {
       const b = bodies.get(id);
       const el = els.get(id);
-      if (!b) continue;
-      if (!el) continue;
+      if (!b || !el) continue;
+      sanitize(b);
       el.style.transform =
         `translate(${b.position.x * scale - w / 2}px, ${b.position.y * scale - hh / 2}px) rotate(${b.angle}rad)`;
     }
@@ -228,7 +254,10 @@ export function createBreweryView(ctx) {
       container.replaceChildren(build(r));
       measure();
       const list = ctx.game.s.floor[r];
-      for (const e of list) if (e.x != null && !e.drop) makeBody(e.id, e.x, e.y, e.a);
+      // 저장된 위치가 온전한 병만 그 자리에. 깨진 위치는 다시 쌓음
+      const valid = (e) => Number.isFinite(e.x) && Number.isFinite(e.y) && e.x >= 0 && e.x <= FW && e.y <= FH + BOTTLE_H;
+      for (const e of list) if (!e.drop && !valid(e)) { e.x = null; e.y = null; }
+      for (const e of list) if (e.x != null && !e.drop) makeBody(e.id, e.x, e.y, Number.isFinite(e.a) ? e.a : 0);
       const unplaced = list.filter((e) => e.x == null && !e.drop);
       if (unplaced.length) settleUnplaced(unplaced);
       for (const id of bodies.keys()) elFor(id);

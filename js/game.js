@@ -76,6 +76,8 @@ export function newGameState(seed = (Date.now() ^ (Math.random() * 1e9)) >>> 0) 
     xp: 0,
     skills,
     room: "workshop",
+    playMs: 0,       // 게임을 한 시간 (화면을 보고 있던 시간)
+    clearedAt: null, // 모든 선반을 완성한 시각
   };
 }
 
@@ -89,6 +91,8 @@ export class Game {
 
   /** 예전 세이브 보정: 열 방식 더미(piles) → 바닥 위치 방식(floor) */
   migrate() {
+    if (!Number.isFinite(this.s.playMs)) this.s.playMs = 0;
+    if (this.s.clearedAt === undefined) this.s.clearedAt = null;
     // 스킬 개편: 물통 개수+크기 → '물통' 하나, 물통·분류기·사용 스킬은 0레벨 시작 (해당 스킬은 초기화)
     if (this.s.skills.drumCount !== undefined) {
       delete this.s.skills.drumCount;
@@ -385,10 +389,14 @@ export class Game {
     }
   }
 
-  /** 부름: 같은 방 바닥에서 라벨 색이 같은 약병을 위쪽부터 최대 n개 인벤토리로 */
-  summon(room, color, n) {
+  /** 부름: 같은 방 바닥에서 무작위 약병을 최대 n개 인벤토리로 */
+  summon(room, n) {
     const list = this.s.floor[room];
-    const found = list.filter((e) => this.item(e.id).c === color).sort((a, b) => (a.y ?? 0) - (b.y ?? 0));
+    const found = [...list];
+    for (let i = found.length - 1; i > 0; i--) { // 섞기
+      const j = Math.floor(Math.random() * (i + 1));
+      [found[i], found[j]] = [found[j], found[i]];
+    }
     let got = 0, lastDst = null;
     for (const f of found) {
       if (got >= n) break;

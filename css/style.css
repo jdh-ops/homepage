@@ -793,3 +793,13 @@ html, body, * { touch-action: manipulation; }
 .inv-slot { touch-action: none; } /* 인벤토리는 바로 끌기 */
 /* 입력칸을 누를 때 아이폰이 자동 확대하지 않게 (16px 미만이면 확대함) */
 body.mobile .login-panel input { font-size: 16px; }
+
+/* ---------- 모든 선반 완성 ---------- */
+.clear-panel { width: 420px; text-align: center; }
+.clear-icon { font-size: 48px; line-height: 1; margin-bottom: 6px; }
+.clear-panel p { color: var(--muted); line-height: 1.6; }
+.clear-stats { display: grid; grid-template-columns: auto auto; justify-content: center; gap: 6px 16px; margin: 14px 0; font-size: 16px; }
+.clear-stats dt { color: var(--muted); }
+.clear-stats dd { margin: 0; font-weight: 800; color: var(--gold); }
+.clear-actions { justify-content: center; }
+body.mobile #clearOverlay .clear-actions { flex-direction: column; }

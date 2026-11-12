@@ -75,7 +75,7 @@ export const SKILLS = [
     extra: { name: "주입기", values: [3, 3, 4, 4, 5], unit: "개" }, unlock: ZONE4_LEVEL, start: 0 },
   {
     id: "summon", name: "부름", active: true, unlock: 1, start: 0,
-    desc: "들고 있는 약병과 같은 라벨 색의 약병을 같은 방 바닥에서 인벤토리로 불러옴",
+    desc: "지금 있는 창고 바닥에서 무작위 약병을 인벤토리로 불러옴",
     values: [2, 4, 6, 8, 10], unit: "병", cooldown: [60, 50, 40, 30, 10],
   },
   {

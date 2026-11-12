@@ -30,6 +30,8 @@ export function encodeSave(s) {
     sk: s.skills,
     room: s.room,
     ml: s.mapLocks || {},
+    pt: Math.round(s.playMs || 0),
+    ca: s.clearedAt || null,
   };
 }
 
@@ -57,5 +59,7 @@ export function decodeSave(d) {
   s.skills = d.sk;
   s.room = d.room;
   s.mapLocks = d.ml || {};
+  s.playMs = d.pt || 0;
+  s.clearedAt = d.ca || null;
   return s;
 }

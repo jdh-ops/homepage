@@ -596,6 +596,29 @@ function sorterTick(now) {
   }
 }
 
+// ---------- 게임한 시간 / 완성 ----------
+let lastPlayTick = 0;
+function countPlayTime(now) {
+  const dt = lastPlayTick ? Math.min(1000, now - lastPlayTick) : 0; // 잠들었다 깨어나도 1초 넘게 더하지 않음
+  lastPlayTick = now;
+  if (!account || game.s.clearedAt || document.visibilityState !== "visible") return;
+  game.s.playMs = (game.s.playMs || 0) + dt;
+}
+
+function formatPlayTime(ms) {
+  const sec = Math.floor(ms / 1000), h = Math.floor(sec / 3600), m = Math.floor((sec % 3600) / 60);
+  return h ? `${h}시간 ${m}분` : `${m}분 ${sec % 60}초`;
+}
+
+function showClear() {
+  $("#clearTime").textContent = formatPlayTime(game.s.playMs || 0);
+  $("#clearDate").textContent = game.s.clearedAt ? new Date(game.s.clearedAt).toLocaleDateString("ko-KR") : "-";
+  document.querySelectorAll(".overlay.show").forEach((o) => o.classList.remove("show"));
+  openOverlay("#clearOverlay");
+}
+$("#btnClearRestart").addEventListener("click", () => $("#btnNewGame").click());
+$("#btnClearDelete").addEventListener("click", () => $("#btnDeleteAccount").click());
+
 // ---------- 사용 스킬 (1: 부름, 2: 자동 진열) ----------
 const skillRt = { cdUntil: { summon: 0, autoShelve: 0 }, autoUntil: 0, lastTick: 0 };
 const ACTIVE_KEYS = { summon: "1", autoShelve: "2" };
@@ -611,13 +634,11 @@ function useSkill(id) {
 
   if (id === "summon") {
     if (!game.s.room.startsWith("brewery")) { toast("부름은 창고에서만 쓸 수 있어요."); return; }
-    const it = ui.sel?.a === "inv" ? game.item(game.itemAt(ui.sel)) : null;
-    if (!it || it.t !== "b") { toast("인벤토리에서 기준이 될 약병을 먼저 선택하세요 (Q/E)."); return; }
     const free = game.s.inv.slice(0, game.invSize).filter((x) => x == null).length;
     if (!free) { toast("인벤토리가 가득 찼어요."); return; }
-    const got = game.summon(+game.s.room.slice(7), it.c, s.values[lv - 1]);
-    if (!got) { toast(`이 방 바닥에 ${COLORS[it.c].name} 라벨 약병이 없어요.`); return; }
-    toast(`부름! ${COLORS[it.c].name} 라벨 약병 ${got}개를 불러왔어요.`);
+    const got = game.summon(+game.s.room.slice(7), s.values[lv - 1]);
+    if (!got) { toast("이 창고 바닥에 남은 약병이 없어요."); return; }
+    toast(`부름! 약병 ${got}개를 불러왔어요.`);
     skillRt.cdUntil.summon = now + s.cooldown[lv - 1] * 1000;
   } else {
     skillRt.autoUntil = now + s.values[lv - 1] * 1000;
@@ -670,6 +691,7 @@ setInterval(() => {
   const now = performance.now();
   renderSkillBar();
   sorterTick(now);
+  countPlayTime(now);
   if (now < skillRt.autoUntil && !ui.busy && game.s.room === "shelves" && ui.shelf != null && now - skillRt.lastTick > 300) {
     skillRt.lastTick = now;
     const dst = game.autoShelveOne(ui.shelf);
@@ -706,7 +728,7 @@ $("#btnNewGame").addEventListener("click", () => {
   if (!confirm("지금까지의 진행 상황이 모두 사라져요. 새로 시작할까요?")) return;
   startGame(new Game(newGameState()));
   saveNow(true);
-  closeOverlay("#menuOverlay");
+  document.querySelectorAll(".overlay.show").forEach((o) => o.classList.remove("show"));
   showIntro();
 });
 $("#btnIntroOk").addEventListener("click", () => closeOverlay("#introOverlay"));
@@ -871,6 +893,7 @@ async function enterAccount(acc) {
   if (serverFailed) toast("서버에서 불러오지 못해서 이 기기에 저장된 진행으로 시작했어요.");
   else if (game.skillsReset) toast("레벨이 낮아져서 스킬을 처음 상태로 되돌리고 포인트를 돌려드렸어요.");
   if (isNew) showIntro();
+  else if (game.s.clearedAt) showClear();
 }
 
 /** 다른 곳에서 로그인해서 이 기기의 로그인이 끊겼을 때: 이 기기 저장본은 버리고(서버 것이 최신) 로그인 화면으로 */
@@ -997,6 +1020,10 @@ function bindGame() {
     // 인벤토리로 병이 들어오면 그 병을 선택 (부름은 마지막으로 들어온 병)
     if (info.dst?.a === "inv" && (info.type === "move" || info.type === "pileTake" || info.type === "summon")) {
       ui.sel = { ...info.dst };
+    }
+    if (info.type === "move" && info.row && game.completedRows() >= SHELF_ROWS * COLORS.length && !game.s.clearedAt) {
+      game.s.clearedAt = Date.now(); // 모든 선반 완성!
+      setTimeout(showClear, 600);
     }
     if (info.type === "move" && info.row) {
       const { c, r, xp, levelUp } = info.row;
