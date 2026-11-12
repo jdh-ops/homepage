@@ -56,7 +56,16 @@ const ctx = {
   openShelf(c) {
     ui.shelf = c;
     refresh();
-    $("#view .zoom-scroll")?.scrollTo(0, 0);
+    const sc = $("#view .zoom-scroll");
+    if (!sc || c == null) return;
+    // 첫 번째 미완성 행이 맨 위(요일 머리글 바로 아래)에 오도록
+    const r = game.s.lockedRows[c].findIndex((done) => !done);
+    const cell = r > 0 ? sc.querySelector(`[data-loc="shelf:${c}:${r}:0"]`) : null;
+    sc.scrollTop = 0;
+    if (cell) {
+      const head = sc.querySelector(".st-head")?.offsetHeight || 0;
+      sc.scrollTop = cell.getBoundingClientRect().top - sc.getBoundingClientRect().top - head - 6;
+    }
   },
 };
 
