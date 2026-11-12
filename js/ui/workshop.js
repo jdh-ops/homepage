@@ -25,7 +25,7 @@ function drum(ctx, i) {
     h("div", { class: "drum-body-wrap" }, body,
       h("div", { class: "tap", "data-drum-out": i, title: "수도꼭지 — 우클릭: 물통에서 선택한 병으로 빼내기" },
         h("i", { class: "tap-handle" }), h("i", { class: "tap-spout" }))),
-    h("div", { class: "drum-count" }, h("b", { text: `${pct}%` }), ` ${d.u.length}/${cap}`));
+    h("div", { class: "drum-count", text: `${d.u.length}/${cap}` }));
   ctx.decorate(el, loc);
   return el;
 }
