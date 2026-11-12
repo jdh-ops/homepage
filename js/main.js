@@ -1,6 +1,6 @@
 import {
   COLORS, DAYS, SKILLS, SKILL_MAX, MAX_LEVEL, xpForLevel, ZONE3_LEVEL, ZONE4_LEVEL,
-  SAVE_KEY, SHELF_ROWS, FLOOR_W, FLOOR_H, FLOOR_W_MOBILE, FLOOR_H_MOBILE, POUR_BASE_MS, POUR_PER_UNIT_MS, INVENTORY_POUR_FACTOR, BREWERY_COUNT, SORTER_IDLE_MS,
+  SAVE_KEY, SHELF_ROWS, FLOOR_W, FLOOR_H, FLOOR_W_MOBILE, FLOOR_H_MOBILE, POUR_MS, BREWERY_COUNT, SORTER_IDLE_MS,
 } from "./config.js";
 import { Game, newGameState, sameLoc } from "./game.js";
 import { encodeSave, decodeSave } from "./save-format.js";
@@ -225,8 +225,7 @@ function moveFailReason(src, dst) {
 }
 
 async function doPour(src, dst, n, keepSel = src) {
-  const factor = src.a === "inv" && dst.a === "inv" ? INVENTORY_POUR_FACTOR : 1;
-  ui.pourMs = (POUR_BASE_MS + POUR_PER_UNIT_MS * n) * factor;
+  ui.pourMs = POUR_MS;
   ui.busy = true;
   ui.pouring = new Set([locKey(src), locKey(dst)]);
   ui.sel = keepSel; // 부은 뒤에도 선택 유지

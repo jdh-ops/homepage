@@ -103,8 +103,6 @@ export const SORTER_INJECTORS = 5;
 export const SORTER_IDLE_MS = 1000; // 밸브를 이만큼 안 누르면 분류기가 병을 채워 줌
 
 // ---------- 붓기 시간 (ms) ----------
-export const POUR_BASE_MS = 300;
-export const POUR_PER_UNIT_MS = 110;
-export const INVENTORY_POUR_FACTOR = 2; // 인벤토리 안에서 부을 때는 2배
+export const POUR_MS = 400; // 어디서 어디로, 몇 칸을 옮기든 같은 시간
 
 export const SAVE_KEY = "witch-potion-save-v1";
