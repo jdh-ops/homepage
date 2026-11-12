@@ -441,6 +441,17 @@ document.addEventListener("pointercancel", (e) => {
 });
 // 끄는 동안 화면이 스크롤되지 않게
 document.addEventListener("touchmove", (e) => { if (drag?.active) e.preventDefault(); }, { passive: false });
+// 아이폰: 빠르게 두 번 탭하면 화면이 확대됨 → 두 번째 탭의 기본 동작(확대)을 막고, 탭은 클릭으로 그대로 전달
+let lastTouchEnd = 0;
+document.addEventListener("touchend", (e) => {
+  const now = Date.now();
+  if (now - lastTouchEnd < 350 && e.changedTouches.length === 1 && !e.target.closest("input, textarea, select")) {
+    e.preventDefault();
+    e.target.click?.();
+  }
+  lastTouchEnd = now;
+}, { passive: false });
+document.addEventListener("dblclick", (e) => e.preventDefault());
 // 끌고 난 뒤 따라오는 클릭은 무시
 document.addEventListener("click", (e) => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); suppressClick = false; } }, true);
 
