@@ -787,3 +787,9 @@ body.mobile #menuOverlay .menu-actions { flex-direction: column; flex-wrap: nowr
 body.mobile #menuOverlay .menu-actions .btn { width: 100%; padding: 11px 12px; text-align: left; font-size: 14px; }
 body.mobile #menuOverlay .menu-actions .btn { white-space: nowrap; }
 body.mobile .acc-short span { white-space: pre; } /* 삭제 예정일은 정해진 두 줄. 모자라면 메뉴가 넓어짐 */
+
+/* 휴대폰: 두 번 탭해서 확대되지 않게 (스크롤·드래그는 그대로) */
+html, body, * { touch-action: manipulation; }
+.inv-slot { touch-action: none; } /* 인벤토리는 바로 끌기 */
+/* 입력칸을 누를 때 아이폰이 자동 확대하지 않게 (16px 미만이면 확대함) */
+body.mobile .login-panel input { font-size: 16px; }
