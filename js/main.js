@@ -508,7 +508,7 @@ function toggleRoomLock(id) {
 function renderMap() {
   const rooms = MAP_ROOMS.map(({ id, cls = "", area }) => {
     const locked = isRoomLocked(id);
-    const sub = id.startsWith("brewery") ? `약병 ${game.pileCount(+id.slice(7))}개`
+    const sub = id.startsWith("brewery") ? `남은 약병 ${game.pileCount(+id.slice(7))}개`
       : id === "shelves" ? `완성 ${game.completedRows()}행` : "색 맞추기";
     const go = h("button", { class: "btn small map-go", text: game.s.room === id ? "여기" : "이동" });
     go.disabled = game.s.room === id;

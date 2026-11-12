@@ -726,7 +726,8 @@ body.mobile .st-cell .vial { --vw: 22px; }
 /* 창 (지도·스킬·계정·로그인) */
 body.mobile .panel { width: calc(100vw - 20px) !important; max-height: calc(100dvh - 40px); padding: 14px; }
 body.mobile .map-grid { grid-template-rows: 90px 64px 160px; padding: 6px; gap: 4px; }
-body.mobile .map-room small { display: none; }
+body.mobile .map-room:not(.brewroom) small { display: none; }
+body.mobile .map-room.brewroom small { font-size: 11px; }
 body.mobile .skill { grid-template-columns: 1fr auto; gap: 8px; }
 body.mobile .skill .pips { display: none; }
 .toggle-row { flex-direction: row !important; align-items: center; gap: 8px !important; color: var(--text) !important; font-size: 14px !important; }
