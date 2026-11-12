@@ -14,7 +14,8 @@ ROOT = Path(__file__).resolve().parent.parent
 version = time.strftime("%Y%m%d%H%M%S", time.gmtime())
 
 modules = sorted(p.relative_to(ROOT).as_posix() for p in (ROOT / "js").rglob("*.js") if "vendor" not in p.parts)
-imports = {f"/{m}": f"/{m}?v={version}" for m in modules}
+# 상대 주소(./): 사이트가 도메인 맨 앞이든 /저장소이름/ 아래든 동작
+imports = {f"./{m}": f"./{m}?v={version}" for m in modules}
 importmap = json.dumps({"imports": imports}, indent=2, ensure_ascii=False)
 
 html = (ROOT / "index.html").read_text(encoding="utf-8")
