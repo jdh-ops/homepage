@@ -882,15 +882,20 @@ function kicked(msg) {
   toast(msg);
 }
 
-// 1분마다 로그인이 살아 있는지 확인 (약 0.5KB)
-setInterval(async () => {
+// 로그인이 살아 있는지 확인 (약 0.5KB): 1분마다 + 화면이 다시 보일 때 바로 (폰을 다시 켰을 때 등)
+let lastSessionCheck = 0;
+async function checkSession() {
   if (!account || document.visibilityState !== "visible") return;
+  lastSessionCheck = Date.now();
   try {
     const acc = await cloud.getAccount();
     if (!acc) kicked("다른 곳에서 로그인해서 로그아웃됐어요.");
     else account.lastSeen = acc.lastSeen;
   } catch { /* 연결 문제는 무시 */ }
-}, 60000);
+}
+setInterval(checkSession, 60000);
+document.addEventListener("visibilitychange", () => { if (Date.now() - lastSessionCheck > 3000) checkSession(); });
+window.addEventListener("pageshow", (e) => { if (e.persisted) checkSession(); }); // 사파리 뒤로가기 캐시에서 돌아올 때
 
 function showLogin() {
   account = null;
