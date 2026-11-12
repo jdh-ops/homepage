@@ -16,16 +16,16 @@ function drum(ctx, i) {
   const loc = { a: "drum", i };
   const d = g.s.drums[i];
   const cap = g.drumCap;
-  const body = h("div", { class: "drum-body" });
-  // 칸 높이는 물통 최대 크기 기준 → 확장하면 물통이 길어짐
-  body.style.setProperty("--cap", cap);
-  for (let k = 0; k < d.u.length; k++) body.append(h("div", { class: "drum-seg", "--c": COLORS[d.u[k]].hex }));
+  // 높이는 고정, 채워진 비율(%)만큼 물약이 차오름
+  const pct = cap ? Math.round((d.u.length / cap) * 100) : 0;
+  const body = h("div", { class: "drum-body" },
+    h("div", { class: "drum-liquid", style: `height:${pct}%`, "--c": d.u.length ? COLORS[d.u[0]].hex : null }));
   const el = h("div", { class: "drum", "data-drum-in": i, title: "우클릭: 선택한 병의 내용물을 물통에 넣기" },
     h("div", { class: "drum-rim" }),
     h("div", { class: "drum-body-wrap" }, body,
       h("div", { class: "tap", "data-drum-out": i, title: "수도꼭지 — 우클릭: 물통에서 선택한 병으로 빼내기" },
         h("i", { class: "tap-handle" }), h("i", { class: "tap-spout" }))),
-    h("div", { class: "drum-count", text: `${d.u.length}/${cap}` }));
+    h("div", { class: "drum-count" }, h("b", { text: `${pct}%` }), ` ${d.u.length}/${cap}`));
   ctx.decorate(el, loc);
   return el;
 }

@@ -14,9 +14,24 @@ function overview(ctx) {
       }
     }
     const rowsDone = g.s.lockedRows[c].filter(Boolean).length;
+    // 아직 완성하지 않은 행 중 앞쪽 3줄 미리보기 (모바일에서 보임)
+    const peek = h("div", { class: "shelf-peek" },
+      h("span", { class: "pk-num" }), ...DAYS.map((d) => h("span", { class: "pk-day", text: d })));
+    let shown = 0;
+    for (let r = 0; r < SHELF_ROWS && shown < 3; r++) {
+      if (g.s.lockedRows[c][r]) continue;
+      shown++;
+      peek.append(h("span", { class: "pk-num", text: r + 1 }));
+      for (let d = 0; d < DAYS.length; d++) {
+        const ok = g.cellOk(c, r, d);
+        peek.append(h("i", { class: ok == null ? "" : ok ? "ok" : "bad" }));
+      }
+    }
     const card = h("button", { class: "shelf-card", "--sc": col.hex, "data-shelf": c },
-      h("div", { class: "shelf-card-title" }, h("b", { text: `${col.name} 선반` })),
-      h("div", { class: "shelf-card-sub", text: `${g.shelfCount(c)}/${SHELF_ROWS * DAYS.length}병 · 완성 ${rowsDone}행` }),
+      h("div", { class: "shelf-card-info" },
+        h("div", { class: "shelf-card-title" }, h("b", { text: `${col.name} 선반` })),
+        h("div", { class: "shelf-card-sub", text: `${g.shelfCount(c)}/${SHELF_ROWS * DAYS.length}병 · 완성 ${rowsDone}행` })),
+      shown ? peek : h("div", { class: "shelf-peek done", text: "모두 완성!" }),
       grid);
     card.addEventListener("click", () => ctx.openShelf(c));
     return card;

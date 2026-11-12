@@ -104,7 +104,7 @@ function renderInventory() {
 let mountedRoom = null;
 function renderRoom() {
   const view = $("#view");
-  const viewScroll = view.scrollTop; // 모바일 작업실은 #view 가 스크롤됨
+  const viewScroll = mountedRoom === game.s.room ? view.scrollTop : 0; // 모바일은 #view 가 스크롤됨 (방을 옮기면 맨 위부터)
   const room = game.s.room;
   if (room.startsWith("brewery")) {
     const r = +room.slice(7);
@@ -340,8 +340,11 @@ function dragSourceAt(target) {
 function dropTargetAt(x, y) {
   const t = document.elementFromPoint(x, y);
   if (!t) return null;
-  const d = t.closest("[data-drum-in], [data-drum-out]");
-  if (d) return { loc: { a: "drum", i: +(d.dataset.drumIn ?? d.dataset.drumOut) }, el: d.closest(".drum") };
+  // 수도꼭지: 끌고 온 병으로 빼기 / 물통 몸통: 넣기
+  const tap = t.closest("[data-drum-out]");
+  if (tap) return { loc: { a: "drum", i: +tap.dataset.drumOut }, el: tap, out: true };
+  const d = t.closest("[data-drum-in]");
+  if (d) return { loc: { a: "drum", i: +d.dataset.drumIn }, el: d.querySelector(".drum-body") || d };
   const el = t.closest("[data-loc]");
   return el ? { loc: parseLoc(el.dataset.loc), el } : null;
 }
@@ -378,6 +381,14 @@ function endDrag(x, y) {
   const hit = dropTargetAt(x, y);
   if (!hit || sameLoc(hit.loc, d.src) || ui.busy) return;
   const { src } = d, dst = hit.loc;
+  if (hit.out && src.a !== "drum") {
+    // 병을 수도꼭지에 놓음 → 물통에서 그 병으로 따르기
+    if (src.a === "shelf") { toast("선반의 약병에는 따를 수 없어요."); return; }
+    const n = game.pourAmount(dst, src);
+    if (n) doPour(dst, src, n, src);
+    else toast(!game.s.drums[dst.i].u.length ? "물통이 비어 있어요." : "병이 가득 차 있어요.");
+    return;
+  }
   const dstIsContainer = dst.a === "drum" || (dst.a !== "shelf" && game.itemAt(dst) != null);
   if (dstIsContainer) {
     if (src.a === "shelf") { toast("선반의 약병에는 붓거나 따를 수 없어요."); return; }
