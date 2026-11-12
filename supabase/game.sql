@@ -29,6 +29,10 @@ create table if not exists public.player_saves (
   updated_at timestamptz not null default now()
 );
 
+-- 색인: 7일 미접속 정리(last_seen)와 로그인 시 다른 기기 세션 삭제(player_id)를 빠르게
+create index if not exists players_last_seen_idx on public.players (last_seen);
+create index if not exists player_sessions_player_idx on public.player_sessions (player_id);
+
 -- 표는 브라우저에서 직접 읽고 쓸 수 없음 (정책 없음). 아래 함수로만 접근.
 alter table public.players enable row level security;
 alter table public.player_sessions enable row level security;
