@@ -442,15 +442,28 @@ document.addEventListener("pointercancel", (e) => {
 // 끄는 동안 화면이 스크롤되지 않게
 document.addEventListener("touchmove", (e) => { if (drag?.active) e.preventDefault(); }, { passive: false });
 // 아이폰: 빠르게 두 번 탭하면 화면이 확대됨 → 두 번째 탭의 기본 동작(확대)을 막고, 탭은 클릭으로 그대로 전달
+// 브라우저에 따라 기본 동작을 막아도 원래 클릭이 또 오는 경우가 있어서(아이폰), 같은 탭에서 클릭이 두 번 처리되지 않게 걸러 냄
 let lastTouchEnd = 0;
+let forcedClick = null; // { el, at } 직접 보낸 클릭
+document.addEventListener("touchstart", () => { forcedClick = null; }, { passive: true }); // 새 탭이 시작되면 그 탭의 클릭은 정상 처리
 document.addEventListener("touchend", (e) => {
   const now = Date.now();
   if (now - lastTouchEnd < 350 && e.changedTouches.length === 1 && !e.target.closest("input, textarea, select")) {
     e.preventDefault();
-    e.target.click?.();
+    forcedClick = { el: e.target, at: now };
+    const ev = new MouseEvent("click", { bubbles: true, cancelable: true, view: window });
+    ev.forced = true;
+    e.target.dispatchEvent(ev);
   }
   lastTouchEnd = now;
 }, { passive: false });
+document.addEventListener("click", (e) => {
+  // 직접 보낸 클릭 뒤에 브라우저가 같은 탭의 원래 클릭을 또 보내면 무시
+  if (!e.forced && forcedClick && Date.now() - forcedClick.at < 1500 &&
+      (forcedClick.el === e.target || forcedClick.el.contains?.(e.target) || e.target.contains?.(forcedClick.el))) {
+    e.stopPropagation(); e.preventDefault(); // 다음 탭이 시작되기 전까지 오는 원래 클릭은 무시
+  }
+}, true);
 document.addEventListener("dblclick", (e) => e.preventDefault());
 // 끌고 난 뒤 따라오는 클릭은 무시
 document.addEventListener("click", (e) => { if (suppressClick) { e.stopPropagation(); e.preventDefault(); suppressClick = false; } }, true);
