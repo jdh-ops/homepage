@@ -5,7 +5,38 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>마녀의 물약 정리</title>
 <meta name="description" content="마녀가 마구 섞어 놓은 물약을 제자가 되어 정리하는 게임" />
-<link rel="stylesheet" href="css/style.css" />
+<link rel="stylesheet" href="css/style.css?v=20261112010215" />
+<script>
+  // 새 버전 확인: 이 페이지(index.html)가 캐시된 옛것이면, 새 버전 주소로 다시 불러옴 (약 0.2KB)
+  (function () {
+    const BUILD = "20261112010215";
+    fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.json(); })
+      .then(function (j) {
+        if (!j.v || j.v === BUILD) return;
+        const u = new URL(location.href);
+        if (u.searchParams.get("v") === j.v) return; // 이미 한 번 시도함 (무한 새로고침 방지)
+        u.searchParams.set("v", j.v);
+        location.replace(u.toString());
+      })
+      .catch(function () {});
+  })();
+</script>
+<script type="importmap">
+{
+  "imports": {
+    "/js/cloud.js": "/js/cloud.js?v=20261112010215",
+    "/js/config.js": "/js/config.js?v=20261112010215",
+    "/js/game.js": "/js/game.js?v=20261112010215",
+    "/js/main.js": "/js/main.js?v=20261112010215",
+    "/js/save-format.js": "/js/save-format.js?v=20261112010215",
+    "/js/ui/brewery.js": "/js/ui/brewery.js?v=20261112010215",
+    "/js/ui/common.js": "/js/ui/common.js?v=20261112010215",
+    "/js/ui/shelves.js": "/js/ui/shelves.js?v=20261112010215",
+    "/js/ui/workshop.js": "/js/ui/workshop.js?v=20261112010215"
+  }
+}
+  </script>
 </head>
 <body>
   <header class="hud">
@@ -130,7 +161,7 @@
     </div>
   </div>
 
-  <script src="js/vendor/matter.min.js"></script>
-  <script type="module" src="js/main.js"></script>
+  <script src="js/vendor/matter.min.js?v=20261112010215"></script>
+  <script type="module" src="js/main.js?v=20261112010215"></script>
 </body>
 </html>
