@@ -111,9 +111,12 @@ function renderInventory() {
 }
 
 let mountedRoom = null;
+const roomScroll = {}; // 방 → 마지막 스크롤 위치 (이번 접속 동안만)
 function renderRoom() {
   const view = $("#view");
-  const viewScroll = mountedRoom === game.s.room ? view.scrollTop : 0; // 모바일은 #view 가 스크롤됨 (방을 옮기면 맨 위부터)
+  // 모바일은 #view 가 스크롤됨. 방마다 마지막 스크롤 위치를 기억했다가 돌아오면 그 자리로
+  if (mountedRoom && mountedRoom !== game.s.room) roomScroll[mountedRoom] = view.scrollTop;
+  const viewScroll = mountedRoom === game.s.room ? view.scrollTop : (roomScroll[game.s.room] ?? 0);
   const room = game.s.room;
   if (room.startsWith("brewery")) {
     const r = +room.slice(7);
