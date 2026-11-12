@@ -760,3 +760,28 @@ body.mobile .shelf-peek.done { display: block; font-size: 12px; color: var(--gol
 .shelf-peek i.ok { background: var(--sc); }
 .shelf-peek i.bad { background: repeating-linear-gradient(45deg, var(--bad) 0 2px, #fff 2px 4px); }
 .pk-num { text-align: right; padding-right: 2px; }
+
+/* ---------- 모바일 ☰ 메뉴: 오른쪽에서 나오는 세로 서랍 ---------- */
+body.mobile #menuOverlay { place-items: stretch end; padding: 0; }
+body.mobile #menuOverlay .menu-panel {
+  width: min(62vw, 260px) !important;
+  max-height: none;
+  height: 100dvh;
+  border-radius: 16px 0 0 16px;
+  border-right: none;
+  padding: 14px 14px calc(14px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transform: translateX(100%);
+  transition: transform 0.22s ease;
+}
+body.mobile #menuOverlay.show .menu-panel { transform: none; }
+body.mobile #menuOverlay .panel-head { justify-content: flex-end; margin: 0; }
+body.mobile #menuOverlay .panel-head h2,
+body.mobile #menuOverlay .account-info,
+body.mobile #menuOverlay .warn-note { display: none; }
+body.mobile .acc-short { flex-direction: column; gap: 4px; font-size: 14px; line-height: 1.4; }
+body.mobile .acc-short span { font-size: 12px; }
+body.mobile #menuOverlay .menu-actions { flex-direction: column; flex-wrap: nowrap; gap: 8px; margin: 0; }
+body.mobile #menuOverlay .menu-actions .btn { width: 100%; padding: 11px 12px; text-align: left; font-size: 14px; }

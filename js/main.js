@@ -940,6 +940,8 @@ function renderAccount() {
     : lastSavedAt ? `서버에 저장됨 · ${new Date(lastSavedAt).toLocaleTimeString("ko-KR")}` : "-";
   const until = account.lastSeen ? Date.parse(account.lastSeen) + cloud.INACTIVE_DAYS * 86400000 : null;
   $("#accWarn").textContent = WARN_TEXT + (until ? ` 지금 접속을 끊으면 ${fmt(until)} 이후 삭제돼요.` : "");
+  $("#accShortId").textContent = `ID : ${account.nickname}`;
+  $("#accShortDel").textContent = until ? `(미접속 시 ${fmt(until)}에 삭제)` : "";
 }
 
 $("#btnLogout").addEventListener("click", async () => {

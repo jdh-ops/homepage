@@ -5,11 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>마녀의 물약 정리</title>
 <meta name="description" content="마녀가 마구 섞어 놓은 물약을 제자가 되어 정리하는 게임" />
-<link rel="stylesheet" href="css/style.css?v=20261112012941" />
+<link rel="stylesheet" href="css/style.css?v=20261112013811" />
 <script>
   // 새 버전 확인: 이 페이지(index.html)가 캐시된 옛것이면, 새 버전 주소로 다시 불러옴 (약 0.2KB)
   (function () {
-    const BUILD = "20261112012941";
+    const BUILD = "20261112013811";
     fetch("version.json?t=" + Date.now(), { cache: "no-store" })
       .then(function (r) { return r.json(); })
       .then(function (j) {
@@ -25,15 +25,15 @@
 <script type="importmap">
 {
   "imports": {
-    "/js/cloud.js": "/js/cloud.js?v=20261112012941",
-    "/js/config.js": "/js/config.js?v=20261112012941",
-    "/js/game.js": "/js/game.js?v=20261112012941",
-    "/js/main.js": "/js/main.js?v=20261112012941",
-    "/js/save-format.js": "/js/save-format.js?v=20261112012941",
-    "/js/ui/brewery.js": "/js/ui/brewery.js?v=20261112012941",
-    "/js/ui/common.js": "/js/ui/common.js?v=20261112012941",
-    "/js/ui/shelves.js": "/js/ui/shelves.js?v=20261112012941",
-    "/js/ui/workshop.js": "/js/ui/workshop.js?v=20261112012941"
+    "/js/cloud.js": "/js/cloud.js?v=20261112013811",
+    "/js/config.js": "/js/config.js?v=20261112013811",
+    "/js/game.js": "/js/game.js?v=20261112013811",
+    "/js/main.js": "/js/main.js?v=20261112013811",
+    "/js/save-format.js": "/js/save-format.js?v=20261112013811",
+    "/js/ui/brewery.js": "/js/ui/brewery.js?v=20261112013811",
+    "/js/ui/common.js": "/js/ui/common.js?v=20261112013811",
+    "/js/ui/shelves.js": "/js/ui/shelves.js?v=20261112013811",
+    "/js/ui/workshop.js": "/js/ui/workshop.js?v=20261112013811"
   }
 }
   </script>
@@ -105,9 +105,14 @@
         <dt>저장</dt><dd id="accSaved" class="muted">-</dd>
       </dl>
       <p class="warn-note" id="accWarn"></p>
+      <!-- 모바일: ID 와 삭제 예정일만 짧게 -->
+      <div class="acc-short mobile-only">
+        <b id="accShortId"></b>
+        <span class="muted" id="accShortDel"></span>
+      </div>
       <div class="menu-actions mobile-only">
-        <button class="btn" id="btnMenuMap">🗺 지도</button>
         <button class="btn" id="btnMenuSkills">✦ 스킬 <span class="badge" id="menuSkillBadge" hidden>0</span></button>
+        <button class="btn" id="btnMenuMap">🗺 지도</button>
       </div>
       <div class="menu-actions">
         <button class="btn" id="btnToggleMobile">📱 모바일 화면</button>
@@ -161,7 +166,7 @@
     </div>
   </div>
 
-  <script src="js/vendor/matter.min.js?v=20261112012941"></script>
-  <script type="module" src="js/main.js?v=20261112012941"></script>
+  <script src="js/vendor/matter.min.js?v=20261112013811"></script>
+  <script type="module" src="js/main.js?v=20261112013811"></script>
 </body>
 </html>
